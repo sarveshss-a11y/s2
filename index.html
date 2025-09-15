@@ -898,6 +898,8 @@ const dataAPI = {
                         <div class="user-role">Student</div>
                     </div>
                 </div>
+                <div id="foldersContainer"></div>
+
                 <input type="text" id="folderName" placeholder="Enter folder name">
 
                 <div class="nav-section">
@@ -1504,14 +1506,20 @@ async function saveUserData() {
 // Add await saveUserData(); after modifying the data
 
 // Render folders
-function renderFolders(folders = user.folders, parentElement = document.getElementById("foldersContainer")) {
-    parentElement.innerHTML = ""; // clear before rendering
+function renderFolders(folders = user.folders) {
+    const container = document.getElementById("foldersContainer");
+    if (!container) {
+        console.error("foldersContainer not found in DOM");
+        return;
+    }
+
+    container.innerHTML = ""; // clear before rendering
 
     folders.forEach(folder => {
         const folderDiv = document.createElement("div");
         folderDiv.classList.add("folder");
 
-        // Folder name with toggle
+        // Folder name
         const nameSpan = document.createElement("span");
         nameSpan.textContent = folder.name;
         nameSpan.onclick = () => toggleFolderCollapse(folder.id);
@@ -1523,19 +1531,20 @@ function renderFolders(folders = user.folders, parentElement = document.getEleme
 
         folderDiv.appendChild(nameSpan);
         folderDiv.appendChild(deleteBtn);
-        parentElement.appendChild(folderDiv);
+        container.appendChild(folderDiv);
 
-        // Render subfolders if expanded
-        if (!folder.collapsed && folder.subfolders && folder.subfolders.length > 0) {
+        // Render subfolders recursively
+        if (!folder.collapsed && folder.subfolders?.length) {
             const subDiv = document.createElement("div");
             subDiv.classList.add("subfolder-container");
             subDiv.style.marginLeft = "20px";
             folderDiv.appendChild(subDiv);
 
-            renderFolders(folder.subfolders, subDiv); // recursion
+            renderFolders(folder.subfolders, subDiv);
         }
     });
 }
+
 
 
 // Toggle folder collapse state
