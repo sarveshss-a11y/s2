@@ -1504,121 +1504,72 @@ async function saveUserData() {
 // Add await saveUserData(); after modifying the data
 
 // Render folders
-function renderFolders(folders, parentElement = folderList, level = 0) {
-    parentElement.innerHTML = '';
-    
-    if (folders.length === 0) {
-        parentElement.innerHTML = '<div class="empty-state"><i>📁</i><p>No folders yet</p></div>';
-        return;
-    }
-    
+function renderFolders(folders = user.folders, parentElement = document.getElementById("foldersContainer")) {
+    parentElement.innerHTML = ""; // clear before rendering
+
     folders.forEach(folder => {
-        const folderItem = document.createElement('div');
-        folderItem.className = 'folder-item';
-        folderItem.style.paddingLeft = `${10 + level * 20}px`;
-        
-        const folderPercentage = calculateFolderPercentage(folder);
-        const subfolderCount = folder.subfolders ? folder.subfolders.length : 0;
-        const isCollapsed = folder.collapsed || false;
-        
-        folderItem.innerHTML = `
-            <span class="toggle-arrow ${isCollapsed ? 'collapsed' : ''}">${isCollapsed ? '▶' : '▼'}</span>
-            <span class="folder-icon">📁</span>
-            <div class="folder-content">
-                <span class="folder-name">${folder.name}</span>
-                <div>
-                    <span class="folder-percentage">${folderPercentage}%</span>
-                    ${subfolderCount > 0 ? `<span class="subfolder-count">${subfolderCount} sub</span>` : ''}
-                </div>
-            </div>
-            <div class="folder-actions">
-                <button class="btn btn-sm btn-success add-subfolder-btn" data-id="${folder.id}">+</button>
-                <button class="btn btn-sm btn-warning rename-folder-btn" data-id="${folder.id}">✏️</button>
-                <button class="btn btn-sm btn-danger delete-folder-btn" data-id="${folder.id}">🗑️</button>
-            </div>
-        `;
-        
-        parentElement.appendChild(folderItem);
-        
-        // Add event listener to toggle arrow
-        const toggleArrow = folderItem.querySelector('.toggle-arrow');
-        toggleArrow.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleFolderCollapse(folder);
-        });
-        
-        // Add event listener to select folder
-        folderItem.querySelector('.folder-name').addEventListener('click', () => {
-            selectFolder(folder);
-        });
-        
-        // Add event listeners for folder actions
-        folderItem.querySelector('.add-subfolder-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            createSubfolder(folder);
-        });
-        
-        folderItem.querySelector('.rename-folder-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            renameFolder(folder);
-        });
-        
-        folderItem.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteFolder(folder);
-        });
-        
-        // Render subfolders if they exist and not collapsed
-        if (folder.subfolders && folder.subfolders.length > 0 && !isCollapsed) {
-            const subfolderContainer = document.createElement('div');
-            subfolderContainer.className = 'subfolder-container';
-            subfolderContainer.id = `subfolder-${folder.id}`;
-            parentElement.appendChild(subfolderContainer);
-            renderFolders(folder.subfolders, subfolderContainer, level + 1);
+        const folderDiv = document.createElement("div");
+        folderDiv.classList.add("folder");
+
+        // Folder name with toggle
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = folder.name;
+        nameSpan.onclick = () => toggleFolderCollapse(folder.id);
+
+        // Delete button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "🗑";
+        deleteBtn.onclick = () => deleteFolder(folder.id);
+
+        folderDiv.appendChild(nameSpan);
+        folderDiv.appendChild(deleteBtn);
+        parentElement.appendChild(folderDiv);
+
+        // Render subfolders if expanded
+        if (!folder.collapsed && folder.subfolders && folder.subfolders.length > 0) {
+            const subDiv = document.createElement("div");
+            subDiv.classList.add("subfolder-container");
+            subDiv.style.marginLeft = "20px";
+            folderDiv.appendChild(subDiv);
+
+            renderFolders(folder.subfolders, subDiv); // recursion
         }
     });
 }
 
+
 // Toggle folder collapse state
 async function toggleFolderCollapse(folderId) {
     const token = localStorage.getItem("authToken");
-    if (!token) {
-        alert("You must log in first.");
-        return;
-    }
+    if (!token) return alert("Please log in first");
+
+    const folder = findFolderById(user.folders, folderId);
+    if (!folder) return console.error("Folder not found");
+
+    const newCollapsed = !folder.collapsed;
 
     try {
-        // Find current folder state
-        const folder = findFolderById(user.folders, folderId);
-        if (!folder) {
-            console.error("Folder not found");
-            return;
-        }
-
-        // Toggle collapsed
-        const updatedCollapsed = !folder.collapsed;
-
-        // Send update to backend
-        const response = await fetch(`${API_BASE_URL}/api/folders/${folderId}`, {
+        const res = await fetch(`${API_BASE_URL}/api/folders/${folderId}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ collapsed: updatedCollapsed })
+            body: JSON.stringify({ collapsed: newCollapsed })
         });
 
-        if (response.ok) {
-            folder.collapsed = updatedCollapsed; // update in memory
-            renderFolders(); // re-render UI
+        if (res.ok) {
+            folder.collapsed = newCollapsed;
+            renderFolders();
         } else {
-            const data = await response.json();
+            const data = await res.json();
             alert("Error: " + data.message);
         }
-    } catch (error) {
-        console.error("Error toggling folder:", error);
+    } catch (err) {
+        console.error("Error toggling folder:", err);
     }
 }
+
 
 // Helper to find nested folders
 function findFolderById(folders, folderId) {
@@ -1754,49 +1705,33 @@ function renameFolder(folder) {
 }
 
 // Delete a folder
-function deleteFolder(folder) {
-    if (!confirm(`Are you sure you want to delete the folder "${folder.name}" and all its contents?`)) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    function deleteFolderFromTree(folders, targetId) {
-        for (let i = 0; i < folders.length; i++) {
-            if (folders[i].id === targetId) {
-                folders.splice(i, 1);
-                return true;
+async function deleteFolder(folderId) {
+    const token = localStorage.getItem("authToken");
+    if (!token) return alert("Please log in first");
+
+    if (!confirm("Are you sure you want to delete this folder?")) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/folders/${folderId}`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${token}`
             }
-            if (folders[i].subfolders && folders[i].subfolders.length > 0) {
-                if (deleteFolderFromTree(folders[i].subfolders, targetId)) {
-                    return true;
-                }
-            }
+        });
+
+        if (res.ok) {
+            // Refresh folders
+            await loadUserData();
+            renderFolders();
+        } else {
+            const data = await res.json();
+            alert("Error: " + data.message);
         }
-        return false;
-    }
-    
-    if (deleteFolderFromTree(userData.folders, folder.id)) {
-        users[currentUser.username] = userData;
-        localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-        
-        renderFolders(userData.folders);
-        
-        // If the deleted folder is currently selected, clear the selection
-        if (selectedFolder && selectedFolder.id === folder.id) {
-            selectedFolder = null;
-            folderContent.innerHTML = `
-                <div class="empty-state">
-                    <i>📁</i>
-                    <h3>No Folder Selected</h3>
-                    <p>Select a folder from the sidebar or create a new one to get started</p>
-                </div>
-            `;
-            marksSection.style.display = 'none';
-        }
-        
-        updateOverallAverage();
+    } catch (err) {
+        console.error("Error deleting folder:", err);
     }
 }
+
 
 // Select a folder
 function selectFolder(folder) {
