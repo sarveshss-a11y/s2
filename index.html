@@ -1060,7 +1060,11 @@ const authAPI = {
             method: 'POST',
             body: { username, password },
         }),
-
+loginWithToken: async () => {
+    // This is a simple token verification by trying to get user data
+    const userData = await dataAPI.getUserData();
+    return { user: { username: userData.username || 'User' } };
+},
     login: async (username, password) => 
         await apiRequest('/api/login', {
             method: 'POST',
@@ -1631,13 +1635,15 @@ function handleLogout() {
     clearUI();
 }
 
+// Replace the checkAuthStatus function with this:
 function checkAuthStatus() {
     const token = localStorage.getItem('authToken');
     if (token) {
-        // Verify token with backend
-        authAPI.loginWithToken()
-            .then(user => {
-                currentUser = user;
+        // Instead of loginWithToken, verify token by making a simple API request
+        dataAPI.getUserData()
+            .then(userData => {
+                // If we get user data successfully, the token is valid
+                currentUser = { username: userData.username || 'User' }; // Adjust based on your API response
                 showPage('app-page');
                 loadUserData();
             })
@@ -1651,6 +1657,7 @@ function checkAuthStatus() {
 }
 
 // Folder functions
+// Replace the createFolder function with this:
 async function createFolder() {
     const folderName = document.getElementById('folderName').value;
     if (!folderName) {
@@ -1666,6 +1673,29 @@ async function createFolder() {
         document.getElementById('folderName').value = '';
     } catch (error) {
         alert('Error creating folder: ' + error.message);
+    }
+}
+
+// Replace the createSubfolder function with this:
+async function createSubfolder() {
+    const subfolderName = document.getElementById('subfolder-name').value;
+    const parentFolderId = document.getElementById('parent-folder').value;
+    
+    if (!subfolderName || !parentFolderId) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    try {
+        const newSubfolder = await dataAPI.createFolder(subfolderName, parentFolderId);
+        folders.push(newSubfolder);
+        renderFolders();
+        updateFolderSelects();
+        hideModal('subfolder-modal');
+        document.getElementById('subfolder-name').value = '';
+        document.getElementById('parent-folder').value = '';
+    } catch (error) {
+        alert('Error creating subfolder: ' + error.message);
     }
 }
 
@@ -2245,13 +2275,15 @@ function clearUI() {
 }
 
 // Data loading
+// Replace the loadUserData function with this:
 async function loadUserData() {
     if (!currentUser) return;
     
     try {
         const userData = await dataAPI.getUserData();
-        folders = userData.folders || [];
-        marks = userData.marks || [];
+        // Adjust these based on your actual API response structure
+        folders = userData.folders || userData.data?.folders || [];
+        marks = userData.marks || userData.data?.marks || [];
         
         document.getElementById('user-name').textContent = currentUser.username;
         document.getElementById('user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
