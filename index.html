@@ -8,24 +8,89 @@
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         .api-status {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    z-index: 1000;
-}
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1000;
+        }
 
-.api-status.connected {
-    background-color: var(--success);
-    color: white;
-}
+        .api-status.connected {
+            background-color: var(--success);
+            color: white;
+        }
 
-.api-status.disconnected {
-    background-color: var(--danger);
-    color: white;
-}
+        .api-status.disconnected {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        /* Dark theme styles */
+        body.dark-theme {
+            background: linear-gradient(135deg, #2c3e50 0%, #1a1a2e 100%);
+            color: #f8f9fa;
+        }
+
+        body.dark-theme .container {
+            background: rgba(33, 37, 41, 0.95);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-theme .form-control {
+            background-color: #495057;
+            border-color: #6c757d;
+            color: #f8f9fa;
+        }
+
+        body.dark-theme .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+        }
+
+        body.dark-theme .stat-card,
+        body.dark-theme .marks-form,
+        body.dark-theme .marks-list,
+        body.dark-theme .progress-report,
+        body.dark-theme .settings-container {
+            background: #343a40;
+            color: #f8f9fa;
+        }
+
+        body.dark-theme .marks-table th {
+            background-color: #495057;
+            color: #f8f9fa;
+        }
+
+        body.dark-theme .marks-table tr:hover {
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+
+        body.dark-theme .sidebar {
+            background-color: var(--primary-dark);
+        }
+
+        body.dark-theme .main-content {
+            background-color: #2d3748;
+        }
+
+        body.dark-theme .content-header {
+            border-bottom-color: #495057;
+        }
+
+        body.dark-theme .settings-option {
+            background-color: #495057;
+        }
+
+        body.dark-theme .settings-option:hover {
+            background-color: #5a6268;
+        }
+
+        body.dark-theme .danger-zone {
+            background-color: #4a1c1c;
+        }
+
         :root {
             --primary: #4361ee;
             --primary-dark: #3a56d4;
@@ -693,6 +758,57 @@
             margin-right: 8px;
         }
 
+        /* Folder UI Improvements */
+        .folder-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .folder-input-container input {
+            flex: 1;
+        }
+
+        .folder-hierarchy {
+            margin-left: 15px;
+            border-left: 2px solid rgba(255, 255, 255, 0.2);
+            padding-left: 10px;
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .folder-main-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .folder-actions button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .folder-actions button:hover {
+            opacity: 1;
+        }
+
+        .no-folders-message {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+        }
+
         @media (max-width: 768px) {
             .app-container {
                 flex-direction: column;
@@ -744,6 +860,10 @@
                 margin-left: 0;
                 margin-top: 10px;
                 width: 100%;
+            }
+
+            .folder-input-container {
+                flex-direction: column;
             }
         }
     </style>
@@ -898,13 +1018,13 @@ const dataAPI = {
                         <div class="user-role">Student</div>
                     </div>
                 </div>
-                <div id="foldersContainer"></div>
-
-                <input type="text" id="folderName" placeholder="Enter folder name">
-
+                
                 <div class="nav-section">
                     <div class="nav-title">Folders</div>
-                    <button class="btn btn-success btn-block" id="create-folder-btn">+ New Folder</button>
+                    <div class="folder-input-container">
+                        <input type="text" id="folderName" class="form-control" placeholder="Folder name">
+                        <button class="btn btn-success" id="create-folder-btn">Add</button>
+                    </div>
                     <div class="folder-structure" id="folder-list">
                         <!-- Folders will be dynamically added here -->
                     </div>
@@ -1146,1316 +1266,152 @@ const dataAPI = {
 </div>
 
 <script>
-// DOM Elements
-const signupPage = document.getElementById('signup-page');
-const loginPage = document.getElementById('login-page');
-const appPage = document.getElementById('app-page');
-const settingsPage = document.getElementById('settings-page');
-const signupLink = document.getElementById('signup-link');
-const loginLink = document.getElementById('login-link');
-const signupBtn = document.getElementById('signup-btn');
-const loginBtn = document.getElementById('login-btn');
-const logoutBtn = document.getElementById('logout-btn');
-const themeToggle = document.getElementById('theme-toggle');
-const settingsThemeToggle = document.getElementById('settings-theme-toggle');
-const settingsBtn = document.getElementById('settings-btn');
-const backBtn = document.getElementById('back-btn');
-const signupError = document.getElementById('signup-error');
-const loginError = document.getElementById('login-error');
-const userName = document.getElementById('user-name');
-const userAvatar = document.getElementById('user-avatar');
-const folderList = document.getElementById('folder-list');
-const createFolderBtn = document.getElementById('create-folder-btn');
-const currentFolder = document.getElementById('current-folder');
-const folderContent = document.getElementById('folder-content');
-const marksSection = document.getElementById('marks-section');
-const folderAverage = document.getElementById('folder-average');
-const totalMarksCount = document.getElementById('total-marks-count');
-const lastUpdated = document.getElementById('last-updated');
-const subjectName = document.getElementById('subject-name');
-const marksObtained = document.getElementById('marks-obtained');
-const totalMarks = document.getElementById('total-marks');
-const marksDate = document.getElementById('marks-date');
-const addMarksBtn = document.getElementById('add-marks-btn');
-const marksTableBody = document.getElementById('marks-table-body');
-const progressReportContent = document.getElementById('progress-report-content');
-const overallAverage = document.getElementById('overall-average');
-const togglePasswordButtons = document.querySelectorAll('.toggle-password');
-const downloadChartBtn = document.getElementById('download-chart-btn');
-
-// Settings elements
-const changeUsernameBtn = document.getElementById('change-username-btn');
-const changePasswordBtn = document.getElementById('change-password-btn');
-const chartStyleSelect = document.getElementById('chart-style-select');
-const exportDataBtn = document.getElementById('export-data-btn');
-const importDataBtn = document.getElementById('import-data-btn');
-const importDataFile = document.getElementById('import-data-file');
-const clearDataBtn = document.getElementById('clear-data-btn');
-const deleteAccountBtn = document.getElementById('delete-account-btn');
-
-// Current user and selected folder
-let currentUser = null;
-let selectedFolder = null;
-let progressChart = null;
-let currentUserData = null; 
-
-// Initialize the application
-function initApp() {
-    // Check if user is already logged in
-    const userData = localStorage.getItem('currentUser');
-    if (userData) {
-        currentUser = JSON.parse(userData);
-        showAppPage();
-        userName.textContent = currentUser.username;
-        userAvatar.textContent = currentUser.username.charAt(0).toUpperCase();
-        loadUserData();
-        updateOverallAverage();
-    } else {
-        showSignupPage();
+    // DOM Elements
+    const signupPage = document.getElementById('signup-page');
+    const loginPage = document.getElementById('login-page');
+    const appPage = document.getElementById('app-page');
+    const settingsPage = document.getElementById('settings-page');
+    
+    const signupError = document.getElementById('signup-error');
+    const loginError = document.getElementById('login-error');
+    
+    const signupBtn = document.getElementById('signup-btn');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    
+    const loginLink = document.getElementById('login-link');
+    const signupLink = document.getElementById('signup-link');
+    
+    const folderNameInput = document.getElementById('folderName');
+    const createFolderBtn = document.getElementById('create-folder-btn');
+    const folderList = document.getElementById('folder-list');
+    
+    const themeToggle = document.getElementById('theme-toggle');
+    const settingsThemeToggle = document.getElementById('settings-theme-toggle');
+    const settingsBtn = document.getElementById('settings-btn');
+    const backBtn = document.getElementById('back-btn');
+    
+    const currentFolderElement = document.getElementById('current-folder');
+    const folderContent = document.getElementById('folder-content');
+    const marksSection = document.getElementById('marks-section');
+    
+    const subjectNameInput = document.getElementById('subject-name');
+    const marksObtainedInput = document.getElementById('marks-obtained');
+    const totalMarksInput = document.getElementById('total-marks');
+    const marksDateInput = document.getElementById('marks-date');
+    const addMarksBtn = document.getElementById('add-marks-btn');
+    
+    const folderAverageElement = document.getElementById('folder-average');
+    const totalMarksCountElement = document.getElementById('total-marks-count');
+    const lastUpdatedElement = document.getElementById('last-updated');
+    const overallAverageElement = document.getElementById('overall-average');
+    
+    const marksTableBody = document.getElementById('marks-table-body');
+    
+    const apiStatus = document.getElementById('api-status');
+    
+    // Global variables
+    let currentUser = null;
+    let folders = [];
+    let currentFolderId = null;
+    let progressChart = null;
+    
+    // Initialize the application
+    function init() {
+        checkAuthentication();
+        setupEventListeners();
+        setupTheme();
+        checkApiStatus();
     }
     
-    // Check for saved theme preference
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-theme');
-        themeToggle.checked = true;
-        settingsThemeToggle.checked = true;
+    // Check API status
+    async function checkApiStatus() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/health`);
+            if (response.ok) {
+                apiStatus.textContent = 'API Connected';
+                apiStatus.className = 'api-status connected';
+            } else {
+                throw new Error('API not responding');
+            }
+        } catch (error) {
+            apiStatus.textContent = 'API Disconnected';
+            apiStatus.className = 'api-status disconnected';
+            console.error('API connection error:', error);
+        }
     }
     
-    // Check for saved chart style preference
-    const savedChartStyle = localStorage.getItem('chartStyle');
-    if (savedChartStyle) {
-        chartStyleSelect.value = savedChartStyle;
+    // Check if user is authenticated
+    function checkAuthentication() {
+        const token = localStorage.getItem('authToken');
+        const username = localStorage.getItem('username');
+        
+        if (token && username) {
+            currentUser = username;
+            document.getElementById('user-name').textContent = username;
+            document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
+            
+            showPage(appPage);
+            loadUserData();
+        } else {
+            showPage(signupPage);
+        }
     }
-    
-    // Set today's date as default
-    marksDate.valueAsDate = new Date();
     
     // Set up event listeners
-    setupEventListeners();
-}
-
-// Set up event listeners
-function setupEventListeners() {
-    // Navigation between pages
-    signupLink.addEventListener('click', showSignupPage);
-    loginLink.addEventListener('click', showLoginPage);
-    settingsBtn.addEventListener('click', showSettingsPage);
-    backBtn.addEventListener('click', showAppPage);
-    
-    // Auth buttons
-    signupBtn.addEventListener('click', handleSignup);
-    loginBtn.addEventListener('click', handleLogin);
-    logoutBtn.addEventListener('click', handleLogout);
-    
-    // Theme toggle
-    themeToggle.addEventListener('change', toggleTheme);
-    settingsThemeToggle.addEventListener('change', toggleTheme);
-    
-    // Folder management
-    createFolderBtn.addEventListener('click', createFolder);
-    
-    // Marks management
-    addMarksBtn.addEventListener('click', addMarks);
-    
-    // Chart download
-    downloadChartBtn.addEventListener('click', downloadChart);
-    
-    // Toggle password visibility
-    togglePasswordButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const input = this.previousElementSibling;
-            if (input.type === 'password') {
-                input.type = 'text';
-                this.textContent = '🔒';
-            } else {
-                input.type = 'password';
-                this.textContent = '👁️';
-            }
-        });
-    });
-    
-    // Settings event listeners
-    changeUsernameBtn.addEventListener('click', changeUsername);
-    changePasswordBtn.addEventListener('click', changePassword);
-    chartStyleSelect.addEventListener('change', changeChartStyle);
-    exportDataBtn.addEventListener('click', exportData);
-    importDataBtn.addEventListener('click', () => importDataFile.click());
-    importDataFile.addEventListener('change', importData);
-    clearDataBtn.addEventListener('click', clearAllData);
-    deleteAccountBtn.addEventListener('click', deleteAccount);
-}
-
-// Show signup page
-function showSignupPage() {
-    signupPage.classList.add('active');
-    loginPage.classList.remove('active');
-    appPage.classList.remove('active');
-    settingsPage.classList.remove('active');
-    signupError.style.display = 'none';
-}
-
-// Show login page
-function showLoginPage() {
-    loginPage.classList.add('active');
-    signupPage.classList.remove('active');
-    appPage.classList.remove('active');
-    settingsPage.classList.remove('active');
-    loginError.style.display = 'none';
-}
-
-// Show main app page
-function showAppPage() {
-    appPage.classList.add('active');
-    signupPage.classList.remove('active');
-    loginPage.classList.remove('active');
-    settingsPage.classList.remove('active');
-}
-
-// Show settings page
-function showSettingsPage() {
-    settingsPage.classList.add('active');
-    appPage.classList.remove('active');
-    signupPage.classList.remove('active');
-    loginPage.classList.remove('active');
-}
-
-// Handle user signup
-// Replace your handleSignup function with this:
-async function handleSignup() {
-    const username = document.getElementById('signup-username').value.trim();
-    const password = document.getElementById('signup-password').value;
-    const confirmPassword = document.getElementById('signup-confirm').value;
-    
-    // Basic validation
-    if (!username || !password) {
-        showError(signupError, 'Please fill in all fields');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showError(signupError, 'Passwords do not match');
-        return;
-    }
-    
-    if (password.length < 6) {
-        showError(signupError, 'Password must be at least 6 characters');
-        return;
-    }
-    
-    try {
-        // Use the API instead of localStorage
-        const response = await authAPI.signup(username, password);
+    function setupEventListeners() {
+        // Auth event listeners
+        signupBtn.addEventListener('click', handleSignup);
+        loginBtn.addEventListener('click', handleLogin);
+        logoutBtn.addEventListener('click', handleLogout);
         
-        // Store the token
-        localStorage.setItem('authToken', response.token);
-        localStorage.setItem('currentUser', JSON.stringify(response.user));
+        loginLink.addEventListener('click', () => showPage(loginPage));
+        signupLink.addEventListener('click', () => showPage(signupPage));
         
-        // Update UI
-        userName.textContent = response.user.username;
-        userAvatar.textContent = response.user.username.charAt(0).toUpperCase();
-        showAppPage();
+        // Folder event listeners
+        createFolderBtn.addEventListener('click', createFolder);
         
-        // Load user data from server
-        await loadUserData();
-        updateOverallAverage();
+        // Theme toggle
+        themeToggle.addEventListener('change', toggleTheme);
+        settingsThemeToggle.addEventListener('change', toggleTheme);
         
-    } catch (error) {
-        showError(signupError, error.message);
-    }
-}
-
-// Replace your handleLogin function with this:
-async function handleLogin() {
-    const username = document.getElementById('login-username').value.trim();
-    const password = document.getElementById('login-password').value;
-    
-    // Basic validation
-    if (!username || !password) {
-        showError(loginError, 'Please fill in all fields');
-        return;
-    }
-    
-    try {
-        // Use the API instead of localStorage
-        const response = await authAPI.login(username, password);
+        // Navigation
+        settingsBtn.addEventListener('click', () => showPage(settingsPage));
+        backBtn.addEventListener('click', () => showPage(appPage));
         
-        // Store the token
-        localStorage.setItem('authToken', response.token);
-        localStorage.setItem('currentUser', JSON.stringify(response.user));
+        // Marks event listeners
+        addMarksBtn.addEventListener('click', addMarks);
         
-        // Update UI
-        userName.textContent = response.user.username;
-        userAvatar.textContent = response.user.username.charAt(0).toUpperCase();
-        showAppPage();
-        
-        // Load user data from server
-        await loadUserData();
-        updateOverallAverage();
-        
-    } catch (error) {
-        showError(loginError, error.message);
-    }
-}
-function handleLogout() {
-    localStorage.removeItem('currentUser');
-    currentUser = null;
-    showLoginPage();
-}
-
-// Toggle theme
-function toggleTheme() {
-    document.body.classList.toggle('dark-theme');
-    
-    // Sync both theme toggles
-    themeToggle.checked = document.body.classList.contains('dark-theme');
-    settingsThemeToggle.checked = document.body.classList.contains('dark-theme');
-    
-    // Save theme preference
-    localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
-}
-
-// Show error message
-function showError(element, message) {
-    element.textContent = message;
-    element.style.display = 'block';
-    
-    // Hide error after 3 seconds
-    setTimeout(() => {
-        element.style.display = 'none';
-    }, 3000);
-}
-
-// Simple password hashing (for demo purposes)
-function hashPassword(password) {
-    // In a real application, use a proper hashing algorithm like bcrypt
-    let hash = 0;
-    for (let i = 0; i < password.length; i++) {
-        const char = password.charCodeAt(i);
-        hash = (hash << 5) - hash + char;
-        hash |= 0; // Convert to 32bit integer
-    }
-    return hash.toString();
-}
-
-// Load user data
-// Replace your loadUserData function with this:
-// Load user data
-// Load user data
-async function loadUserData() {
-    try {
-        // First get user data
-        const userResponse = await dataAPI.getUserData();
-        const userData = userResponse.user || userResponse;
-        
-        // Then get folders
-        const foldersResponse = await fetch(`${API_BASE_URL}/api/folders`, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            }
-        });
-        
-        if (foldersResponse.ok) {
-            const foldersData = await foldersResponse.json();
-            
-            // Store the full user data with folders
-            currentUserData = {
-                ...userData,
-                folders: foldersData.folders || []
-            };
-            
-            renderFolders(currentUserData.folders);
-        } else {
-            // Fallback to user data if folders endpoint fails
-            if (userData && (userData.folders || userData.data)) {
-                currentUserData = userData;
-                const folders = userData.folders || userData.data || [];
-                renderFolders(folders);
-            }
-        }
-    } catch (error) {
-        console.error('Failed to load user data:', error);
-        // Initialize with empty data if API fails
-        currentUserData = {
-            folders: [],
-            username: currentUser.username
-        };
-        renderFolders(currentUserData.folders);
-    }
-}
-
-// Add this function to save data to the server:
-// Add this function to save data to the server:
-// Add this function to save data to the server:
-async function saveUserData() {
-    if (!currentUserData) return;
-    
-    try {
-        await dataAPI.saveUserData(currentUserData.folders);
-        console.log('Data saved to server');
-    } catch (error) {
-        console.error('Failed to save data to server:', error);
-        // Fallback to localStorage
-        const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-        users[currentUser.username] = currentUserData;
-        localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-    }
-}
-// Update functions that modify data to call saveUserData():
-// In createFolder(), renameFolder(), deleteFolder(), addMarks(), editMark(), deleteMark()
-// Add await saveUserData(); after modifying the data
-
-// Render folders
-function renderFolders(folders = user.folders) {
-    const container = document.getElementById("foldersContainer");
-    if (!container) {
-        console.error("foldersContainer not found in DOM");
-        return;
-    }
-
-    container.innerHTML = ""; // clear before rendering
-
-    folders.forEach(folder => {
-        const folderDiv = document.createElement("div");
-        folderDiv.classList.add("folder");
-
-        // Folder name
-        const nameSpan = document.createElement("span");
-        nameSpan.textContent = folder.name;
-        nameSpan.onclick = () => toggleFolderCollapse(folder.id);
-
-        // Delete button
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "🗑";
-        deleteBtn.onclick = () => deleteFolder(folder.id);
-
-        folderDiv.appendChild(nameSpan);
-        folderDiv.appendChild(deleteBtn);
-        container.appendChild(folderDiv);
-
-        // Render subfolders recursively
-        if (!folder.collapsed && folder.subfolders?.length) {
-            const subDiv = document.createElement("div");
-            subDiv.classList.add("subfolder-container");
-            subDiv.style.marginLeft = "20px";
-            folderDiv.appendChild(subDiv);
-
-            renderFolders(folder.subfolders, subDiv);
-        }
-    });
-}
-
-
-
-// Toggle folder collapse state
-async function toggleFolderCollapse(folderId) {
-    const token = localStorage.getItem("authToken");
-    if (!token) return alert("Please log in first");
-
-    const folder = findFolderById(user.folders, folderId);
-    if (!folder) return console.error("Folder not found");
-
-    const newCollapsed = !folder.collapsed;
-
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/folders/${folderId}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ collapsed: newCollapsed })
-        });
-
-        if (res.ok) {
-            folder.collapsed = newCollapsed;
-            renderFolders();
-        } else {
-            const data = await res.json();
-            alert("Error: " + data.message);
-        }
-    } catch (err) {
-        console.error("Error toggling folder:", err);
-    }
-}
-
-
-// Helper to find nested folders
-function findFolderById(folders, folderId) {
-    for (const folder of folders) {
-        if (folder.id === folderId) return folder;
-        if (folder.subfolders && folder.subfolders.length > 0) {
-            const found = findFolderById(folder.subfolders, folderId);
-            if (found) return found;
-        }
-    }
-    return null;
-}
-
-
-// Create a new folder
-// Create a new folder
-// Enhanced createFolder function
-// Create a new folder
-async function createFolder() {
-    const folderNameInput = document.getElementById("folderName");
-    if (!folderNameInput) {
-        alert("Folder name input not found in DOM.");
-        return;
-    }
-
-    const folderName = folderNameInput.value.trim();
-    if (!folderName) {
-        alert("Please enter a folder name.");
-        return;
-    }
-
-    const token = localStorage.getItem("authToken");
-    if (!token) {
-        alert("You must log in first.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/folders`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ name: folderName })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            alert("Folder created successfully!");
-            folderNameInput.value = "";
-            await loadUserData();   // refresh folders
-            updateOverallAverage();
-        } else {
-            alert("Error: " + data.message);
-        }
-    } catch (error) {
-        alert("Failed to connect to the server. Please check your connection.");
-        console.error("Error:", error);
-    }
-}
-
-// Create a subfolder
-// Create a subfolder
-// Create a subfolder
-async function createSubfolder(parentFolder) {
-    const folderName = prompt('Enter subfolder name:');
-    if (!folderName) return;
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/folders`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            },
-            body: JSON.stringify({ name: folderName, parentId: parentFolder.id })
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            alert('Subfolder created successfully!');
-            // After successful creation, reload the data from the database
-            await loadUserData();
-            updateOverallAverage();
-        } else {
-            alert(`Failed to create subfolder: ${result.message}`);
-        }
-    } catch (error) {
-        console.error('Network or server error:', error);
-        alert('Failed to connect to the server. Please check your connection.');
-    }
-}
-// Rename a folder
-function renameFolder(folder) {
-    const newName = prompt('Enter new folder name:', folder.name);
-    if (!newName) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    function renameFolderInTree(folders, targetId, newName) {
-        for (const folder of folders) {
-            if (folder.id === targetId) {
-                folder.name = newName;
-                return true;
-            }
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                if (renameFolderInTree(folder.subfolders, targetId, newName)) {
-                    return true;
+        // Password visibility toggle
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.previousElementSibling;
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.textContent = '🔒';
+                } else {
+                    input.type = 'password';
+                    this.textContent = '👁️';
                 }
-            }
-        }
-        return false;
-    }
-    
-    if (renameFolderInTree(userData.folders, folder.id, newName)) {
-        users[currentUser.username] = userData;
-        localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-        
-        renderFolders(userData.folders);
-        
-        // If the renamed folder is currently selected, update the UI
-        if (selectedFolder && selectedFolder.id === folder.id) {
-            selectedFolder.name = newName;
-            currentFolder.textContent = newName;
-        }
-        
-        updateOverallAverage();
-    }
-}
-
-// Delete a folder
-async function deleteFolder(folderId) {
-    const token = localStorage.getItem("authToken");
-    if (!token) return alert("Please log in first");
-
-    if (!confirm("Are you sure you want to delete this folder?")) return;
-
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/folders/${folderId}`, {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        if (res.ok) {
-            // Refresh folders
-            await loadUserData();
-            renderFolders();
-        } else {
-            const data = await res.json();
-            alert("Error: " + data.message);
-        }
-    } catch (err) {
-        console.error("Error deleting folder:", err);
-    }
-}
-
-
-// Select a folder
-function selectFolder(folder) {
-    selectedFolder = folder;
-    currentFolder.textContent = folder.name;
-    marksSection.style.display = 'block';
-    
-    renderMarks(folder.marks);
-    updateFolderStats(folder);
-    renderProgressReport(folder);
-    renderProgressChart(folder);
-}
-
-// Render marks in the selected folder
-function renderMarks(marks) {
-    marksTableBody.innerHTML = '';
-    
-    if (marks.length === 0) {
-        marksTableBody.innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align: center; padding: 20px;">
-                    <div class="empty-state">
-                        <i>📝</i>
-                        <p>No marks yet in this folder</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    marks.forEach((mark, index) => {
-        const percentage = ((mark.marks / mark.total) * 100).toFixed(1);
-        let percentageClass = 'medium';
-        if (percentage >= 80) percentageClass = 'high';
-        if (percentage < 60) percentageClass = 'low';
-        
-        const date = new Date(mark.date).toLocaleDateString();
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${mark.subject}</td>
-            <td>${mark.marks}/${mark.total}</td>
-            <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
-            <td>${date}</td>
-            <td>
-                <div class="action-buttons">
-                    <button class="action-btn edit" data-index="${index}">Edit</button>
-                    <button class="action-btn delete" data-index="${index}">Delete</button>
-                </div>
-            </td>
-        `;
-        
-        marksTableBody.appendChild(row);
-        
-        // Add event listeners for edit and delete buttons
-        row.querySelector('.edit').addEventListener('click', () => {
-            editMark(index);
+            });
         });
         
-        row.querySelector('.delete').addEventListener('click', () => {
-            deleteMark(index);
-        });
-    });
-}
-
-// Add marks to the selected folder
-function addMarks() {
-    if (!selectedFolder) {
-        alert('Please select a folder first');
-        return;
+        // Download chart button
+        document.getElementById('download-chart-btn').addEventListener('click', downloadChart);
     }
     
-    const subject = subjectName.value.trim();
-    const marksValue = parseFloat(marksObtained.value);
-    const totalValue = parseFloat(totalMarks.value);
-    const date = marksDate.value;
-    
-    if (!subject || isNaN(marksValue) || isNaN(totalValue) || !date) {
-        alert('Please fill in all fields');
-        return;
+    // Show a specific page
+    function showPage(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        page.classList.add('active');
     }
     
-    if (marksValue > totalValue) {
-        alert('Marks obtained cannot be greater than total marks');
-        return;
-    }
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    // Find the selected folder in the user's data
-    function findAndUpdateFolder(folders, targetId) {
-        for (const folder of folders) {
-            if (folder.id === targetId) {
-                folder.marks.push({
-                    subject,
-                    marks: marksValue,
-                    total: totalValue,
-                    date
-                });
-                return true;
-            }
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                if (findAndUpdateFolder(folder.subfolders, targetId)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-    
-    if (findAndUpdateFolder(userData.folders, selectedFolder.id)) {
-        users[currentUser.username] = userData;
-        localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-        
-        // Update the selected folder with the new data
-        selectedFolder.marks.push({
-            subject,
-            marks: marksValue,
-            total: totalValue,
-            date
-        });
-        
-        // Clear the form
-        subjectName.value = '';
-        marksObtained.value = '';
-        totalMarks.value = '';
-        marksDate.valueAsDate = new Date();
-        
-        // Update the UI
-        renderMarks(selectedFolder.marks);
-        updateFolderStats(selectedFolder);
-        renderProgressReport(selectedFolder);
-        renderProgressChart(selectedFolder);
-        updateOverallAverage();
-        
-        // Update folder list to reflect new percentage
-        renderFolders(userData.folders);
-    }
-}
-
-// Edit a mark
-function editMark(index) {
-    const mark = selectedFolder.marks[index];
-    
-    const newSubject = prompt('Enter subject name:', mark.subject);
-    if (newSubject === null) return;
-    
-    const newMarks = parseFloat(prompt('Enter marks obtained:', mark.marks));
-    if (isNaN(newMarks)) return;
-    
-    const newTotal = parseFloat(prompt('Enter total marks:', mark.total));
-    if (isNaN(newTotal)) return;
-    
-    if (newMarks > newTotal) {
-        alert('Marks obtained cannot be greater than total marks');
-        return;
-    }
-    
-    const newDate = prompt('Enter date (YYYY-MM-DD):', mark.date);
-    if (!newDate) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    // Find and update the mark in the user's data
-    function findAndUpdateMark(folders, targetId, markIndex) {
-        for (const folder of folders) {
-            if (folder.id === targetId) {
-                folder.marks[markIndex] = {
-                    subject: newSubject,
-                    marks: newMarks,
-                    total: newTotal,
-                    date: newDate
-                };
-                return true;
-            }
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                if (findAndUpdateMark(folder.subfolders, targetId, markIndex)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-    
-    if (findAndUpdateMark(userData.folders, selectedFolder.id, index)) {
-        users[currentUser.username] = userData;
-        localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-        
-        // Update the selected folder with the edited data
-        selectedFolder.marks[index] = {
-            subject: newSubject,
-            marks: newMarks,
-            total: newTotal,
-            date: newDate
-        };
-        
-        // Update the UI
-        renderMarks(selectedFolder.marks);
-        updateFolderStats(selectedFolder);
-        renderProgressReport(selectedFolder);
-        renderProgressChart(selectedFolder);
-        updateOverallAverage();
-        
-        // Update folder list to reflect new percentage
-        renderFolders(userData.folders);
-    }
-}
-
-// Delete a mark
-function deleteMark(index) {
-    if (!confirm('Are you sure you want to delete this mark?')) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    // Find and delete the mark in the user's data
-    function findAndDeleteMark(folders, targetId, markIndex) {
-        for (const folder of folders) {
-            if (folder.id === targetId) {
-                folder.marks.splice(markIndex, 1);
-                return true;
-            }
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                if (findAndDeleteMark(folder.subfolders, targetId, markIndex)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-    
-    if (findAndDeleteMark(userData.folders, selectedFolder.id, index)) {
-        users[currentUser.username] = userData;
-        localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-        
-        // Update the selected folder by removing the mark
-        selectedFolder.marks.splice(index, 1);
-        
-        // Update the UI
-        renderMarks(selectedFolder.marks);
-        updateFolderStats(selectedFolder);
-        renderProgressReport(selectedFolder);
-        renderProgressChart(selectedFolder);
-        updateOverallAverage();
-        
-        // Update folder list to reflect new percentage
-        renderFolders(userData.folders);
-    }
-}
-
-// Update folder statistics
-function updateFolderStats(folder) {
-    const percentage = calculateFolderPercentage(folder);
-    folderAverage.textContent = `${percentage}%`;
-    totalMarksCount.textContent = folder.marks.length;
-    
-    // Find the latest date
-    if (folder.marks.length > 0) {
-        const dates = folder.marks.map(mark => new Date(mark.date));
-        const latestDate = new Date(Math.max.apply(null, dates));
-        lastUpdated.textContent = latestDate.toLocaleDateString();
-    } else {
-        lastUpdated.textContent = '-';
-    }
-}
-
-// Calculate folder percentage
-function calculateFolderPercentage(folder) {
-    if (!folder.marks || folder.marks.length === 0) return 0;
-    
-    let totalMarks = 0;
-    let totalPossible = 0;
-    
-    // Calculate from current folder
-    folder.marks.forEach(mark => {
-        totalMarks += mark.marks;
-        totalPossible += mark.total;
-    });
-    
-    // Calculate from subfolders recursively
-    if (folder.subfolders && folder.subfolders.length > 0) {
-        folder.subfolders.forEach(subfolder => {
-            const subfolderPercentage = calculateFolderPercentage(subfolder);
-            totalMarks += (subfolderPercentage / 100) * 100; // Simplified calculation
-            totalPossible += 100; // Assuming each subfolder contributes 100 points max
-        });
-    }
-    
-    if (totalPossible === 0) return 0;
-    
-    return ((totalMarks / totalPossible) * 100).toFixed(1);
-}
-
-// Render progress report
-function renderProgressReport(folder) {
-    if (!folder.marks || folder.marks.length === 0) {
-        progressReportContent.innerHTML = `
-            <div class="empty-state">
-                <i>📊</i>
-                <p>No data available for progress report</p>
-            </div>
-        `;
-        return;
-    }
-    
-    let html = '';
-    
-    // Calculate overall percentage
-    const percentage = calculateFolderPercentage(folder);
-    let percentageClass = 'medium';
-    if (percentage >= 80) percentageClass = 'high';
-    if (percentage < 60) percentageClass = 'low';
-    
-    html += `
-        <div class="report-item">
-            <div class="report-label">
-                <span>Overall Performance</span>
-                <span>${percentage}%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill ${percentageClass}" style="width: ${percentage}%"></div>
-            </div>
-        </div>
-    `;
-    
-    // Calculate performance by subject
-    const subjectPerformance = {};
-    folder.marks.forEach(mark => {
-        if (!subjectPerformance[mark.subject]) {
-            subjectPerformance[mark.subject] = { totalMarks: 0, totalPossible: 0 };
-        }
-        subjectPerformance[mark.subject].totalMarks += mark.marks;
-        subjectPerformance[mark.subject].totalPossible += mark.total;
-    });
-    
-    // Add subject performance to report
-    Object.keys(subjectPerformance).forEach(subject => {
-        const subjectData = subjectPerformance[subject];
-        const subjectPercentage = ((subjectData.totalMarks / subjectData.totalPossible) * 100).toFixed(1);
-        let subjectPercentageClass = 'medium';
-        if (subjectPercentage >= 80) subjectPercentageClass = 'high';
-        if (subjectPercentage < 60) subjectPercentageClass = 'low';
-        
-        html += `
-            <div class="report-item">
-                <div class="report-label">
-                    <span>${subject}</span>
-                    <span>${subjectPercentage}%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill ${subjectPercentageClass}" style="width: ${subjectPercentage}%"></div>
-                </div>
-            </div>
-        `;
-    });
-    
-    progressReportContent.innerHTML = html;
-}
-
-// Render progress chart
-function renderProgressChart(folder) {
-    const ctx = document.getElementById('progress-chart').getContext('2d');
-    
-    // Destroy previous chart if it exists
-    if (progressChart) {
-        progressChart.destroy();
-    }
-    
-    if (!folder.marks || folder.marks.length === 0) {
-        return;
-    }
-    
-    // Get chart style preference
-    const chartStyle = localStorage.getItem('chartStyle') || 'bar';
-    
-    // Prepare data for chart
-    const subjects = folder.marks.map(mark => mark.subject);
-    const percentages = folder.marks.map(mark => (mark.marks / mark.total) * 100);
-    const backgroundColors = percentages.map(p => {
-        if (p >= 80) return 'rgba(6, 214, 160, 0.7)';
-        if (p >= 60) return 'rgba(255, 209, 102, 0.7)';
-        return 'rgba(239, 71, 111, 0.7)';
-    });
-    
-    // Create chart
-    progressChart = new Chart(ctx, {
-        type: chartStyle,
-        data: {
-            labels: subjects,
-            datasets: [{
-                label: 'Percentage',
-                data: percentages,
-                backgroundColor: chartStyle === 'pie' ? backgroundColors : backgroundColors[0],
-                borderColor: 'rgba(0, 0, 0, 0.1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: chartStyle !== 'pie' ? {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                }
-            } : {},
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Subject Performance'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Download chart as image
-function downloadChart() {
-    if (!progressChart) {
-        alert('No chart available to download');
-        return;
-    }
-    
-    // Use html2canvas to capture the chart as an image
-    html2canvas(document.getElementById('progress-chart')).then(canvas => {
-        const imageLink = document.createElement('a');
-        imageLink.href = canvas.toDataURL('image/png');
-        imageLink.download = 'progress-chart.png';
-        imageLink.click();
-    });
-}
-
-// Update overall average
-function updateOverallAverage() {
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    if (!userData || !userData.folders || userData.folders.length === 0) {
-        overallAverage.textContent = '0%';
-        return;
-    }
-    
-    let totalPercentage = 0;
-    let folderCount = 0;
-    
-    // Calculate overall average from all folders
-    function calculateOverall(folders) {
-        folders.forEach(folder => {
-            // Add percentage from current folder
-            const folderPercentage = calculateFolderPercentage(folder);
-            if (folderPercentage > 0) {
-                totalPercentage += parseFloat(folderPercentage);
-                folderCount++;
-            }
-            
-            // Recursively add percentages from subfolders
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                calculateOverall(folder.subfolders);
-            }
-        });
-    }
-    
-    calculateOverall(userData.folders);
-    
-    if (folderCount === 0) {
-        overallAverage.textContent = '0%';
-        return;
-    }
-    
-    const overallPercentage = (totalPercentage / folderCount).toFixed(1);
-    overallAverage.textContent = `${overallPercentage}%`;
-}
-
-// Settings Functions
-
-// Change username
-function changeUsername() {
-    const newUsername = prompt('Enter new username:');
-    if (!newUsername) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    
-    // Check if new username already exists
-    if (users[newUsername]) {
-        alert('Username already exists. Please choose a different one.');
-        return;
-    }
-    
-    // Get current user data
-    const currentUserData = users[currentUser.username];
-    
-    // Create new user entry with new username
-    users[newUsername] = currentUserData;
-    
-    // Remove old user entry
-    delete users[currentUser.username];
-    
-    // Save updated users
-    localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-    
-    // Update current user
-    currentUser.username = newUsername;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    
-    // Update UI
-    userName.textContent = newUsername;
-    userAvatar.textContent = newUsername.charAt(0).toUpperCase();
-    
-    alert('Username changed successfully!');
-}
-
-// Change password
-function changePassword() {
-    const currentPassword = prompt('Enter your current password:');
-    if (!currentPassword) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    // Verify current password
-    const hashedPassword = hashPassword(currentPassword);
-    if (userData.password !== hashedPassword) {
-        alert('Current password is incorrect.');
-        return;
-    }
-    
-    const newPassword = prompt('Enter new password:');
-    if (!newPassword) return;
-    
-    if (newPassword.length < 6) {
-        alert('Password must be at least 6 characters long.');
-        return;
-    }
-    
-    const confirmPassword = prompt('Confirm new password:');
-    if (newPassword !== confirmPassword) {
-        alert('Passwords do not match.');
-        return;
-    }
-    
-    // Update password
-    userData.password = hashPassword(newPassword);
-    users[currentUser.username] = userData;
-    localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-    
-    alert('Password changed successfully!');
-}
-
-// Change chart style
-function changeChartStyle() {
-    const chartStyle = chartStyleSelect.value;
-    localStorage.setItem('chartStyle', chartStyle);
-    
-    // If a folder is selected and has marks, re-render the chart
-    if (selectedFolder && selectedFolder.marks && selectedFolder.marks.length > 0) {
-        renderProgressChart(selectedFolder);
-    }
-    
-    alert('Chart style preference saved!');
-}
-
-// Export data
-function exportData() {
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    const userData = users[currentUser.username];
-    
-    // Create a blob from the data
-    const dataStr = JSON.stringify(userData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    
-    // Create download link
-    const downloadLink = document.createElement('a');
-    downloadLink.href = URL.createObjectURL(dataBlob);
-    downloadLink.download = `${currentUser.username}_marks_data.json`;
-    
-    // Trigger download
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    
-    alert('Data exported successfully!');
-}
-
-// Import data
-function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (!confirm('Importing data will replace your current data. Are you sure?')) {
-        // Reset the file input
-        event.target.value = '';
-        return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const importedData = JSON.parse(e.target.result);
-            
-            // Validate the imported data structure
-            if (!importedData.folders || !Array.isArray(importedData.folders)) {
-                throw new Error('Invalid data format');
-            }
-            
-            // Update user data with imported data
-            const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-            users[currentUser.username] = importedData;
-            localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-            
-            // Reload the app
-            loadUserData();
-            updateOverallAverage();
-            
-            // Clear selection if any
-            selectedFolder = null;
-            folderContent.innerHTML = `
-                <div class="empty-state">
-                    <i>📁</i>
-                    <h3>No Folder Selected</h3>
-                    <p>Select a folder from the sidebar or create a new one to get started</p>
-                </div>
-            `;
-            marksSection.style.display = 'none';
-            
-            alert('Data imported successfully!');
-        } catch (error) {
-            alert('Error importing data: Invalid file format');
-            console.error('Import error:', error);
-        }
-        
-        // Reset the file input
-        event.target.value = '';
-    };
-    
-    reader.readAsText(file);
-}
-
-// Clear all data
-function clearAllData() {
-    if (!confirm('This will permanently delete all your marks and folders. Are you sure?')) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    users[currentUser.username] = {
-        password: users[currentUser.username].password,
-        folders: [],
-        createdAt: users[currentUser.username].createdAt
-    };
-    
-    localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-    
-    // Reload the app
-    loadUserData();
-    updateOverallAverage();
-    
-    // Clear selection if any
-    selectedFolder = null;
-    folderContent.innerHTML = `
-        <div class="empty-state">
-            <i>📁</i>
-            <h3>No Folder Selected</h3>
-            <p>Select a folder from the sidebar or create a new one to get started</p>
-        </div>
-    `;
-    marksSection.style.display = 'none';
-    
-    alert('All data cleared successfully!');
-}
-
-// Delete account
-function deleteAccount() {
-    if (!confirm('This will permanently delete your account and all data. This action cannot be undone. Are you sure?')) return;
-    
-    const users = JSON.parse(localStorage.getItem('marksExplorer_users') || '{}');
-    delete users[currentUser.username];
-    localStorage.setItem('marksExplorer_users', JSON.stringify(users));
-    
-    // Remove current user
-    localStorage.removeItem('currentUser');
-    currentUser = null;
-    
-    // Go to login page
-    showLoginPage();
-    
-    alert('Account deleted successfully!');
-}
-
-// Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', initApp);
-</script>
-<!-- Add this script tag in the head of your index.html -->
-<script type="module">
-    import { authAPI } from './api.js';
-    
-    // Replace your handleSignup function with this:
+    // Handle signup
     async function handleSignup() {
-        const username = document.getElementById('signup-username').value.trim();
+        const username = document.getElementById('signup-username').value;
         const password = document.getElementById('signup-password').value;
         const confirmPassword = document.getElementById('signup-confirm').value;
         
-        // Basic validation
         if (!username || !password) {
             showError(signupError, 'Please fill in all fields');
             return;
@@ -2466,87 +1422,594 @@ document.addEventListener('DOMContentLoaded', initApp);
             return;
         }
         
-        if (password.length < 6) {
-            showError(signupError, 'Password must be at least 6 characters');
-            return;
-        }
-        
         try {
-            // Use the API instead of localStorage
-            const response = await authAPI.signup(username, password);
+            const result = await authAPI.signup(username, password);
             
-            // Store the token
-            localStorage.setItem('authToken', response.token);
+            localStorage.setItem('authToken', result.token);
+            localStorage.setItem('username', username);
             
-            // Auto login after signup
-            currentUser = { username };
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            userName.textContent = username;
-            userAvatar.textContent = username.charAt(0).toUpperCase();
-            showAppPage();
+            currentUser = username;
+            document.getElementById('user-name').textContent = username;
+            document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
             
-            // Note: You'll need to implement API endpoints for these next
-            // loadUserData();
-            // updateOverallAverage();
-            
+            showPage(appPage);
+            loadUserData();
         } catch (error) {
-            showError(signupError, error.message);
+            showError(signupError, error.message || 'Signup failed');
         }
     }
     
-    // Replace your handleLogin function with this:
+    // Handle login
     async function handleLogin() {
-        const username = document.getElementById('login-username').value.trim();
+        const username = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
         
-        // Basic validation
         if (!username || !password) {
             showError(loginError, 'Please fill in all fields');
             return;
         }
         
         try {
-            // Use the API instead of localStorage
-            const response = await authAPI.login(username, password);
+            const result = await authAPI.login(username, password);
             
-            // Store the token
-            localStorage.setItem('authToken', response.token);
+            localStorage.setItem('authToken', result.token);
+            localStorage.setItem('username', username);
             
-            // Login successful
-            currentUser = { username };
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            userName.textContent = username;
-            userAvatar.textContent = username.charAt(0).toUpperCase();
-            showAppPage();
+            currentUser = username;
+            document.getElementById('user-name').textContent = username;
+            document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
             
-            // Note: You'll need to implement API endpoints for these next
-            // loadUserData();
-            // updateOverallAverage();
-            
+            showPage(appPage);
+            loadUserData();
         } catch (error) {
-            showError(loginError, error.message);
+            showError(loginError, error.message || 'Login failed');
         }
     }
-   // Add this function to check API connection
-async function checkAPIConnection() {
-    const statusElement = document.getElementById('api-status');
-    try {
-        // Try to connect to the health endpoint
-        await fetch(`${API_BASE_URL}/api/health`);
-        statusElement.textContent = 'API Connected';
-        statusElement.className = 'api-status connected';
-    } catch (error) {
-        statusElement.textContent = 'API Disconnected - Using Local Storage';
-        statusElement.className = 'api-status disconnected';
-        console.warn('API not available, using localStorage fallback');
+    
+    // Handle logout
+    function handleLogout() {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('username');
+        currentUser = null;
+        folders = [];
+        
+        showPage(signupPage);
     }
-}
-
-// Call this function when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-    checkAPIConnection();
-    // Your existing initApp code...
-});
+    
+    // Show error message
+    function showError(element, message) {
+        element.textContent = message;
+        element.style.display = 'block';
+        
+        setTimeout(() => {
+            element.style.display = 'none';
+        }, 5000);
+    }
+    
+    // Load user data
+    async function loadUserData() {
+        try {
+            const userData = await dataAPI.getUserData();
+            folders = userData.folders || [];
+            
+            renderFolders();
+            updateOverallStats();
+        } catch (error) {
+            console.error('Failed to load user data:', error);
+        }
+    }
+    
+    // Save user data
+    async function saveUserData() {
+        try {
+            await dataAPI.saveUserData(folders);
+        } catch (error) {
+            console.error('Failed to save user data:', error);
+        }
+    }
+    
+    // Create a new folder
+    function createFolder() {
+        const folderName = folderNameInput.value.trim();
+        
+        if (!folderName) {
+            alert('Please enter a folder name');
+            return;
+        }
+        
+        const newFolder = {
+            id: Date.now().toString(),
+            name: folderName,
+            marks: [],
+            subfolders: [],
+            createdAt: new Date().toISOString()
+        };
+        
+        folders.push(newFolder);
+        saveUserData();
+        renderFolders();
+        
+        folderNameInput.value = '';
+    }
+    
+    // Delete a folder
+    function deleteFolder(folderId) {
+        if (!confirm('Are you sure you want to delete this folder and all its contents?')) {
+            return;
+        }
+        
+        // Find and remove the folder
+        folders = folders.filter(folder => folder.id !== folderId);
+        
+        // If the current folder is deleted, clear the view
+        if (currentFolderId === folderId) {
+            currentFolderId = null;
+            currentFolderElement.textContent = 'Select a Folder';
+            folderContent.style.display = 'block';
+            marksSection.style.display = 'none';
+        }
+        
+        saveUserData();
+        renderFolders();
+        updateOverallStats();
+    }
+    
+    // Create a subfolder
+    function createSubfolder(parentFolderId) {
+        const parentFolder = folders.find(f => f.id === parentFolderId);
+        if (!parentFolder) return;
+        
+        const subfolderName = prompt('Enter subfolder name:');
+        if (!subfolderName) return;
+        
+        const newSubfolder = {
+            id: Date.now().toString(),
+            name: subfolderName,
+            marks: [],
+            subfolders: [],
+            createdAt: new Date().toISOString()
+        };
+        
+        if (!parentFolder.subfolders) {
+            parentFolder.subfolders = [];
+        }
+        
+        parentFolder.subfolders.push(newSubfolder);
+        saveUserData();
+        renderFolders();
+    }
+    
+    // Render folders and subfolders
+    function renderFolders() {
+        folderList.innerHTML = '';
+        
+        if (folders.length === 0) {
+            folderList.innerHTML = '<div class="no-folders-message">No folders created yet</div>';
+            return;
+        }
+        
+        folders.forEach(folder => {
+            const folderElement = createFolderElement(folder, false);
+            folderList.appendChild(folderElement);
+        });
+    }
+    
+    // Create folder element (recursive for subfolders)
+    function createFolderElement(folder, isSubfolder = false) {
+        const folderElement = document.createElement('div');
+        folderElement.className = 'folder-item';
+        
+        const percentage = calculateFolderPercentage(folder);
+        
+        folderElement.innerHTML = `
+            <div class="folder-main-content">
+                <span class="toggle-arrow ${isSubfolder ? '' : 'collapsed'}">▶</span>
+                <span class="folder-icon">📁</span>
+                <div class="folder-content">
+                    <span class="folder-name">${folder.name}</span>
+                    <span class="folder-percentage">${percentage}%</span>
+                </div>
+            </div>
+            <div class="folder-actions">
+                <button class="add-subfolder-btn" title="Add Subfolder">➕</button>
+                <button class="delete-folder-btn" title="Delete Folder">❌</button>
+            </div>
+        `;
+        
+        // Add event listeners
+        folderElement.querySelector('.folder-main-content').addEventListener('click', () => {
+            selectFolder(folder.id);
+        });
+        
+        folderElement.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteFolder(folder.id);
+        });
+        
+        folderElement.querySelector('.add-subfolder-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            createSubfolder(folder.id);
+        });
+        
+        // Toggle arrow for expanding/collapsing
+        const toggleArrow = folderElement.querySelector('.toggle-arrow');
+        toggleArrow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleArrow.classList.toggle('collapsed');
+            
+            const subfolderContainer = folderElement.querySelector('.subfolder-container');
+            if (subfolderContainer) {
+                subfolderContainer.classList.toggle('collapsed');
+            }
+        });
+        
+        // Add subfolders if they exist
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const subfolderContainer = document.createElement('div');
+            subfolderContainer.className = `subfolder-container ${isSubfolder ? '' : 'collapsed'}`;
+            
+            folder.subfolders.forEach(subfolder => {
+                const subfolderElement = createFolderElement(subfolder, true);
+                subfolderContainer.appendChild(subfolderElement);
+            });
+            
+            folderElement.appendChild(subfolderContainer);
+        }
+        
+        return folderElement;
+    }
+    
+    // Select a folder to view its contents
+    function selectFolder(folderId) {
+        currentFolderId = folderId;
+        const folder = findFolderById(folders, folderId);
+        
+        if (!folder) return;
+        
+        currentFolderElement.textContent = folder.name;
+        folderContent.style.display = 'none';
+        marksSection.style.display = 'block';
+        
+        updateFolderStats(folder);
+        renderMarksTable(folder.marks || []);
+        renderProgressChart(folder.marks || []);
+    }
+    
+    // Find folder by ID (recursive for subfolders)
+    function findFolderById(folderList, id) {
+        for (const folder of folderList) {
+            if (folder.id === id) {
+                return folder;
+            }
+            
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                const found = findFolderById(folder.subfolders, id);
+                if (found) return found;
+            }
+        }
+        
+        return null;
+    }
+    
+    // Calculate folder percentage
+    function calculateFolderPercentage(folder) {
+        const marks = getAllMarksFromFolder(folder);
+        
+        if (marks.length === 0) {
+            return 0;
+        }
+        
+        const totalPercentage = marks.reduce((sum, mark) => {
+            return sum + (mark.marksObtained / mark.totalMarks) * 100;
+        }, 0);
+        
+        return Math.round(totalPercentage / marks.length);
+    }
+    
+    // Get all marks from a folder and its subfolders
+    function getAllMarksFromFolder(folder) {
+        let allMarks = [...(folder.marks || [])];
+        
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            folder.subfolders.forEach(subfolder => {
+                allMarks = allMarks.concat(getAllMarksFromFolder(subfolder));
+            });
+        }
+        
+        return allMarks;
+    }
+    
+    // Update folder statistics
+    function updateFolderStats(folder) {
+        const marks = folder.marks || [];
+        
+        if (marks.length === 0) {
+            folderAverageElement.textContent = '0%';
+            totalMarksCountElement.textContent = '0';
+            lastUpdatedElement.textContent = '-';
+            return;
+        }
+        
+        const totalPercentage = marks.reduce((sum, mark) => {
+            return sum + (mark.marksObtained / mark.totalMarks) * 100;
+        }, 0);
+        
+        const average = Math.round(totalPercentage / marks.length);
+        folderAverageElement.textContent = `${average}%`;
+        totalMarksCountElement.textContent = marks.length.toString();
+        
+        const latestDate = marks.reduce((latest, mark) => {
+            return new Date(mark.date) > new Date(latest) ? mark.date : latest;
+        }, marks[0].date);
+        
+        lastUpdatedElement.textContent = new Date(latestDate).toLocaleDateString();
+    }
+    
+    // Update overall statistics
+    function updateOverallStats() {
+        if (folders.length === 0) {
+            overallAverageElement.textContent = '0%';
+            return;
+        }
+        
+        let totalMarks = 0;
+        let totalPercentage = 0;
+        
+        folders.forEach(folder => {
+            const marks = getAllMarksFromFolder(folder);
+            totalMarks += marks.length;
+            
+            marks.forEach(mark => {
+                totalPercentage += (mark.marksObtained / mark.totalMarks) * 100;
+            });
+        });
+        
+        if (totalMarks === 0) {
+            overallAverageElement.textContent = '0%';
+            return;
+        }
+        
+        const average = Math.round(totalPercentage / totalMarks);
+        overallAverageElement.textContent = `${average}%`;
+    }
+    
+    // Add marks to the current folder
+    function addMarks() {
+        if (!currentFolderId) {
+            alert('Please select a folder first');
+            return;
+        }
+        
+        const subject = subjectNameInput.value.trim();
+        const marksObtained = parseFloat(marksObtainedInput.value);
+        const totalMarks = parseFloat(totalMarksInput.value);
+        const date = marksDateInput.value;
+        
+        if (!subject || isNaN(marksObtained) || isNaN(totalMarks) || !date) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        if (marksObtained > totalMarks) {
+            alert('Marks obtained cannot be greater than total marks');
+            return;
+        }
+        
+        const folder = findFolderById(folders, currentFolderId);
+        if (!folder) return;
+        
+        if (!folder.marks) {
+            folder.marks = [];
+        }
+        
+        const newMark = {
+            id: Date.now().toString(),
+            subject,
+            marksObtained,
+            totalMarks,
+            date,
+            percentage: Math.round((marksObtained / totalMarks) * 100)
+        };
+        
+        folder.marks.push(newMark);
+        saveUserData();
+        
+        updateFolderStats(folder);
+        updateOverallStats();
+        renderMarksTable(folder.marks);
+        renderProgressChart(folder.marks);
+        
+        // Clear input fields
+        subjectNameInput.value = '';
+        marksObtainedInput.value = '';
+        totalMarksInput.value = '';
+        marksDateInput.value = '';
+    }
+    
+    // Render marks table
+    function renderMarksTable(marks) {
+        marksTableBody.innerHTML = '';
+        
+        if (marks.length === 0) {
+            marksTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px; color: var(--gray);">
+                        No marks added yet
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        marks.forEach(mark => {
+            const percentage = Math.round((mark.marksObtained / mark.totalMarks) * 100);
+            let percentageClass = 'medium';
+            
+            if (percentage >= 80) {
+                percentageClass = 'high';
+            } else if (percentage < 60) {
+                percentageClass = 'low';
+            }
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${mark.subject}</td>
+                <td>${mark.marksObtained}/${mark.totalMarks}</td>
+                <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
+                <td>${new Date(mark.date).toLocaleDateString()}</td>
+                <td class="action-buttons">
+                    <button class="action-btn edit">Edit</button>
+                    <button class="action-btn delete">Delete</button>
+                </td>
+            `;
+            
+            // Add event listeners for edit and delete
+            row.querySelector('.action-btn.delete').addEventListener('click', () => {
+                deleteMark(mark.id);
+            });
+            
+            row.querySelector('.action-btn.edit').addEventListener('click', () => {
+                editMark(mark);
+            });
+            
+            marksTableBody.appendChild(row);
+        });
+    }
+    
+    // Delete a mark
+    function deleteMark(markId) {
+        if (!currentFolderId) return;
+        
+        const folder = findFolderById(folders, currentFolderId);
+        if (!folder || !folder.marks) return;
+        
+        folder.marks = folder.marks.filter(mark => mark.id !== markId);
+        saveUserData();
+        
+        updateFolderStats(folder);
+        updateOverallStats();
+        renderMarksTable(folder.marks);
+        renderProgressChart(folder.marks);
+    }
+    
+    // Edit a mark
+    function editMark(mark) {
+        // For simplicity, we'll just prefill the form and then delete the old mark
+        // when a new one is added. In a real app, you'd have a proper edit form.
+        subjectNameInput.value = mark.subject;
+        marksObtainedInput.value = mark.marksObtained;
+        totalMarksInput.value = mark.totalMarks;
+        marksDateInput.value = mark.date;
+        
+        // Delete the old mark
+        deleteMark(mark.id);
+    }
+    
+    // Render progress chart
+    function renderProgressChart(marks) {
+        const ctx = document.getElementById('progress-chart').getContext('2d');
+        
+        // Destroy previous chart if it exists
+        if (progressChart) {
+            progressChart.destroy();
+        }
+        
+        if (marks.length === 0) {
+            document.getElementById('progress-report-content').innerHTML = `
+                <div class="empty-state">
+                    <i>📊</i>
+                    <p>No data available for chart</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort marks by date
+        const sortedMarks = [...marks].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        const labels = sortedMarks.map(mark => mark.subject);
+        const percentages = sortedMarks.map(mark => Math.round((mark.marksObtained / mark.totalMarks) * 100));
+        const dates = sortedMarks.map(mark => new Date(mark.date).toLocaleDateString());
+        
+        document.getElementById('progress-report-content').innerHTML = `
+            <p>Progress over ${sortedMarks.length} assessments</p>
+        `;
+        
+        // Create the chart
+        progressChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Percentage Score',
+                    data: percentages,
+                    backgroundColor: 'rgba(67, 97, 238, 0.5)',
+                    borderColor: 'rgba(67, 97, 238, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const index = context.dataIndex;
+                                return `Score: ${percentages[index]}% on ${dates[index]}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Download chart as image
+    function downloadChart() {
+        if (!progressChart) {
+            alert('No chart available to download');
+            return;
+        }
+        
+        const canvas = document.getElementById('progress-chart');
+        const image = canvas.toDataURL('image/png');
+        
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `progress-chart-${new Date().toISOString().slice(0, 10)}.png`;
+        link.click();
+    }
+    
+    // Setup theme from localStorage
+    function setupTheme() {
+        const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+        document.body.classList.toggle('dark-theme', isDarkTheme);
+        themeToggle.checked = isDarkTheme;
+        settingsThemeToggle.checked = isDarkTheme;
+    }
+    
+    // Toggle theme
+    function toggleTheme() {
+        const isDarkTheme = themeToggle.checked;
+        document.body.classList.toggle('dark-theme', isDarkTheme);
+        localStorage.setItem('darkTheme', isDarkTheme);
+        settingsThemeToggle.checked = isDarkTheme;
+    }
+    
+    // Initialize the app
+    init();
 </script>
 </body>
 </html>
