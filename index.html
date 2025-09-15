@@ -715,6 +715,7 @@
 
         .settings-title i {
             margin-right: 10px;
+            font-style: normal;
         }
 
         .settings-option {
@@ -823,6 +824,60 @@
             font-style: italic;
         }
 
+        /* Tree structure styles */
+        .folder-tree {
+            padding-left: 0;
+        }
+
+        .folder-tree-item {
+            margin-bottom: 5px;
+        }
+
+        .folder-tree-content {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .folder-tree-content:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .folder-tree-children {
+            margin-left: 25px;
+            padding-left: 15px;
+            border-left: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .folder-tree-actions {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
+        }
+
+        .folder-tree-actions button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .folder-tree-actions button:hover {
+            opacity: 1;
+        }
+
+        .folder-select {
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
         @media (max-width: 768px) {
             .app-container {
                 flex-direction: column;
@@ -879,6 +934,76 @@
             .folder-input-container {
                 flex-direction: column;
             }
+
+            .folder-tree-children {
+                margin-left: 15px;
+            }
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray);
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        body.dark-theme .modal-content {
+            background-color: #343a40;
+            color: #f8f9fa;
+        }
+
+        body.dark-theme .modal-title {
+            color: var(--primary);
         }
     </style>
     <script>
@@ -941,6 +1066,23 @@ const authAPI = {
             method: 'POST',
             body: { username, password },
         }),
+
+    changeUsername: async (newUsername) => 
+        await apiRequest('/api/change-username', {
+            method: 'POST',
+            body: { newUsername },
+        }),
+
+    changePassword: async (currentPassword, newPassword) => 
+        await apiRequest('/api/change-password', {
+            method: 'POST',
+            body: { currentPassword, newPassword },
+        }),
+
+    deleteAccount: async () => 
+        await apiRequest('/api/delete-account', {
+            method: 'DELETE',
+        }),
 };
 
 // Data API functions
@@ -979,12 +1121,94 @@ const dataAPI = {
     deleteMarks: async (folderId, markId) => 
         await apiRequest(`/api/folders/${folderId}/marks/${markId}`, {
             method: 'DELETE',
-        })
+        }),
+
+    clearAllData: async () => 
+        await apiRequest('/api/clear-data', {
+            method: 'DELETE',
+        }),
 };
 </script>
 </head>
 <body>
     <div class="api-status" id="api-status">Checking API connection...</div>
+    
+    <!-- Modals -->
+    <div class="modal" id="username-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Change Username</h3>
+                <button class="modal-close" data-modal="username-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new-username">New Username</label>
+                    <input type="text" id="new-username" class="form-control" placeholder="Enter new username">
+                </div>
+                <div class="form-group">
+                    <label for="username-password">Current Password</label>
+                    <input type="password" id="username-password" class="form-control" placeholder="Enter your password">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-warning" data-modal="username-modal">Cancel</button>
+                <button class="btn btn-success" id="save-username-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="password-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Change Password</h3>
+                <button class="modal-close" data-modal="password-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="current-password">Current Password</label>
+                    <input type="password" id="current-password" class="form-control" placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" class="form-control" placeholder="Enter new password">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-new-password">Confirm New Password</label>
+                    <input type="password" id="confirm-new-password" class="form-control" placeholder="Confirm new password">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-warning" data-modal="password-modal">Cancel</button>
+                <button class="btn btn-success" id="save-password-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="subfolder-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create Subfolder</h3>
+                <button class="modal-close" data-modal="subfolder-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="subfolder-name">Subfolder Name</label>
+                    <input type="text" id="subfolder-name" class="form-control" placeholder="Enter subfolder name">
+                </div>
+                <div class="form-group">
+                    <label for="parent-folder">Parent Folder</label>
+                    <select id="parent-folder" class="form-control">
+                        <option value="">Select a parent folder</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-warning" data-modal="subfolder-modal">Cancel</button>
+                <button class="btn btn-success" id="create-subfolder-btn">Create Subfolder</button>
+            </div>
+        </div>
+    </div>
+
 <div class="container">
     <!-- Signup Page -->
     <div class="page active" id="signup-page">
@@ -1067,6 +1291,9 @@ const dataAPI = {
                         <input type="text" id="folderName" class="form-control" placeholder="Folder name">
                         <button class="btn btn-success" id="create-folder-btn">Add</button>
                     </div>
+                    <button class="btn btn-info btn-block" id="create-subfolder-btn-main" style="margin-bottom: 15px;">
+                        Create Subfolder
+                    </button>
                     <div class="folder-structure" id="folder-list">
                         <!-- Folders will be dynamically added here -->
                     </div>
@@ -1075,128 +1302,110 @@ const dataAPI = {
                 <div class="nav-section">
                     <div class="nav-title">Overall Performance</div>
                     <div class="stat-card" style="background: rgba(255,255,255,0.1); color: white;">
-                        <div class="stat-label">Average</div>
-                        <div class="stat-value" id="overall-average">0%</div>
+                        <div class="stat-label">Average Percentage</div>
+                        <div class="stat-value" id="overall-percentage">0%</div>
                     </div>
                 </div>
                 
-                <button class="btn btn-warning" id="logout-btn" style="margin-top: auto;">Logout</button>
+                <button class="btn btn-danger btn-block" id="logout-btn" style="margin-top: auto;">Logout</button>
             </div>
             
             <div class="main-content">
                 <div class="content-header">
-                    <h2 id="current-folder">Select a Folder</h2>
-                    <div>
-                        <div class="theme-switch">
-                            <span class="theme-switch-text">Dark Mode</span>
-                            <label class="switch">
-                                <input type="checkbox" id="theme-toggle">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <button class="settings-btn" id="settings-btn">⚙️</button>
+                    <h2>Marks Dashboard</h2>
+                    <button class="settings-btn" id="settings-btn">⚙️</button>
+                </div>
+                
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Subjects</div>
+                        <div class="stat-value" id="total-subjects">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Highest Percentage</div>
+                        <div class="stat-value" id="highest-percentage">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Lowest Percentage</div>
+                        <div class="stat-value" id="lowest-percentage">0%</div>
                     </div>
                 </div>
                 
-                <div id="folder-content">
-                    <div class="empty-state">
-                        <i>📁</i>
-                        <h3>No Folder Selected</h3>
-                        <p>Select a folder from the sidebar or create a new one to get started</p>
+                <div class="marks-form">
+                    <h3 class="form-title">Add New Marks</h3>
+                    <div class="form-group">
+                        <label for="current-folder">Current Folder</label>
+                        <select id="current-folder" class="form-control">
+                            <option value="">Select a folder</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="subject">Subject</label>
+                            <input type="text" id="subject" class="form-control" placeholder="Subject name">
+                        </div>
+                        <div class="form-group">
+                            <label for="marks-obtained">Marks Obtained</label>
+                            <input type="number" id="marks-obtained" class="form-control" placeholder="Marks obtained">
+                        </div>
+                        <div class="form-group">
+                            <label for="total-marks">Total Marks</label>
+                            <input type="number" id="total-marks" class="form-control" placeholder="Total marks">
+                        </div>
+                    </div>
+                    <button class="btn btn-block" id="add-marks-btn">Add Marks</button>
+                </div>
+                
+                <div class="marks-list">
+                    <h3 class="form-title">Marks List</h3>
+                    <div class="form-group">
+                        <select id="folder-select" class="form-control folder-select">
+                            <option value="all">All Folders</option>
+                        </select>
+                    </div>
+                    <div id="marks-table-container">
+                        <table class="marks-table">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Marks Obtained</th>
+                                    <th>Total Marks</th>
+                                    <th>Percentage</th>
+                                    <th>Folder</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marks-table-body">
+                                <!-- Marks will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="empty-state" id="empty-marks" style="display: none;">
+                        <div>📝</div>
+                        <p>No marks added yet. Add your first marks to get started!</p>
                     </div>
                 </div>
                 
-                <div id="marks-section" style="display: none;">
-                    <div class="stats-cards">
-                        <div class="stat-card">
-                            <div class="stat-label">Folder Average</div>
-                            <div class="stat-value" id="folder-average">0%</div>
-                        </div>
-                        
-                        <div class="stat-card">
-                            <div class="stat-label">Total Marks</div>
-                            <div class="stat-value" id="total-marks-count">0</div>
-                        </div>
-                        
-                        <div class="stat-card">
-                            <div class="stat-label">Last Updated</div>
-                            <div class="stat-value" id="last-updated">-</div>
-                        </div>
+                <div class="progress-report">
+                    <h3 class="form-title">Progress Report</h3>
+                    <div class="chart-container">
+                        <canvas id="progress-chart"></canvas>
                     </div>
-                    
-                    <div class="marks-form">
-                        <h3 class="form-title">Add New Marks</h3>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="subject-name">Subject</label>
-                                <input type="text" id="subject-name" class="form-control" placeholder="Subject name">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="marks-obtained">Marks Obtained</label>
-                                <input type="number" id="marks-obtained" class="form-control" placeholder="Marks obtained" min="0">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="total-marks">Total Marks</label>
-                                <input type="number" id="total-marks" class="form-control" placeholder="Total marks" min="1">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="marks-date">Date</label>
-                                <input type="date" id="marks-date" class="form-control">
-                            </div>
-                        </div>
-                        
-                        <button class="btn btn-success" id="add-marks-btn">Add Marks</button>
-                    </div>
-                    
-                    <div class="marks-list">
-                        <h3>Marks in this Folder</h3>
-                        
-                        <div id="marks-table-container">
-                            <table class="marks-table">
-                                <thead>
-                                    <tr>
-                                        <th>Subject</th>
-                                        <th>Marks</th>
-                                        <th>Percentage</th>
-                                        <th>Date</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="marks-table-body">
-                                    <!-- Marks will be dynamically added here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <div class="progress-report">
-                        <h3>Progress Report</h3>
-                        <div id="progress-report-content">
-                            <!-- Progress report will be dynamically added here -->
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="progress-chart"></canvas>
-                        </div>
-                        <button class="btn btn-info download-btn" id="download-chart-btn">Download Chart</button>
-                    </div>
+                    <button class="btn btn-info download-btn" id="download-report-btn">Download Report</button>
                 </div>
             </div>
         </div>
     </div>
-
+    
     <!-- Settings Page -->
     <div class="page" id="settings-page">
         <button class="btn btn-warning back-btn" id="back-btn">
-            <i>←</i> Back to App
+            <i>←</i> Back to Dashboard
         </button>
         
         <div class="header">
             <h1>Settings</h1>
-            <p>Customize your Marks Explorer experience</p>
+            <p>Manage your account preferences</p>
         </div>
         
         <div class="settings-container">
@@ -1209,7 +1418,7 @@ const dataAPI = {
                         <p>Update your account username</p>
                     </div>
                     <div class="option-control">
-                        <button class="btn btn-info" id="change-username-btn">Change</button>
+                        <button class="btn" id="change-username-btn">Change</button>
                     </div>
                 </div>
                 
@@ -1219,7 +1428,7 @@ const dataAPI = {
                         <p>Update your account password</p>
                     </div>
                     <div class="option-control">
-                        <button class="btn btn-info" id="change-password-btn">Change</button>
+                        <button class="btn" id="change-password-btn">Change</button>
                     </div>
                 </div>
             </div>
@@ -1230,52 +1439,17 @@ const dataAPI = {
                 <div class="settings-option">
                     <div class="option-label">
                         <h4>Dark Mode</h4>
-                        <p>Toggle between light and dark themes</p>
+                        <p>Toggle dark mode for better night viewing</p>
                     </div>
                     <div class="option-control">
-                        <label class="switch">
-                            <input type="checkbox" id="settings-theme-toggle">
-                            <span class="slider"></span>
+                        <label class="theme-switch">
+                            <span class="theme-switch-text">Light</span>
+                            <div class="switch">
+                                <input type="checkbox" id="theme-switch">
+                                <span class="slider"></span>
+                            </div>
+                            <span class="theme-switch-text">Dark</span>
                         </label>
-                    </div>
-                </div>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Chart Style</h4>
-                        <p>Change the appearance of progress charts</p>
-                    </div>
-                    <div class="option-control">
-                        <select id="chart-style-select" class="form-control">
-                            <option value="bar">Bar Chart</option>
-                            <option value="line">Line Chart</option>
-                            <option value="pie">Pie Chart</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="settings-section">
-                <h3 class="settings-title"><i>📊</i> Data Management</h3>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Export Data</h4>
-                        <p>Download your marks data as a JSON file</p>
-                    </div>
-                    <div class="option-control">
-                        <button class="btn btn-info" id="export-data-btn">Export</button>
-                    </div>
-                </div>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Import Data</h4>
-                        <p>Upload marks data from a JSON file</p>
-                    </div>
-                    <div class="option-control">
-                        <input type="file" id="import-data-file" accept=".json" style="display: none;">
-                        <button class="btn btn-info" id="import-data-btn">Import</button>
                     </div>
                 </div>
             </div>
@@ -1286,7 +1460,7 @@ const dataAPI = {
                 <div class="settings-option">
                     <div class="option-label">
                         <h4>Clear All Data</h4>
-                        <p>Permanently delete all your folders and marks</p>
+                        <p>Permanently delete all your marks and folders</p>
                     </div>
                     <div class="option-control">
                         <button class="btn btn-danger" id="clear-data-btn">Clear Data</button>
@@ -1308,113 +1482,85 @@ const dataAPI = {
 </div>
 
 <script>
-// DOM Elements
-const signupPage = document.getElementById('signup-page');
-const loginPage = document.getElementById('login-page');
-const appPage = document.getElementById('app-page');
-const settingsPage = document.getElementById('settings-page');
-const apiStatus = document.getElementById('api-status');
-
-// Auth Elements
-const signupBtn = document.getElementById('signup-btn');
-const loginBtn = document.getElementById('login-btn');
-const loginLink = document.getElementById('login-link');
-const signupLink = document.getElementById('signup-link');
-const logoutBtn = document.getElementById('logout-btn');
-
-// Folder Elements
-const folderNameInput = document.getElementById('folderName');
-const createFolderBtn = document.getElementById('create-folder-btn');
-const folderList = document.getElementById('folder-list');
-const currentFolderTitle = document.getElementById('current-folder');
-const folderContent = document.getElementById('folder-content');
-const marksSection = document.getElementById('marks-section');
-
-// Marks Elements
-const addMarksBtn = document.getElementById('add-marks-btn');
-const marksTableBody = document.getElementById('marks-table-body');
-
-// Settings Elements
-const settingsBtn = document.getElementById('settings-btn');
-const backBtn = document.getElementById('back-btn');
-const themeToggle = document.getElementById('theme-toggle');
-const settingsThemeToggle = document.getElementById('settings-theme-toggle');
-
-// State variables
+// State management
 let currentUser = null;
 let folders = [];
-let currentFolderId = null;
-let currentMarks = [];
-let progressChart = null;
+let marks = [];
+let selectedFolderId = null;
+let chart = null;
 
-// Initialize the application
-function init() {
-    // Check if user is logged in
-    const token = localStorage.getItem('authToken');
-    const username = localStorage.getItem('username');
-    
-    if (token && username) {
-        currentUser = username;
-        document.getElementById('user-name').textContent = username;
-        document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
-        showPage(appPage);
-        loadUserData();
-    } else {
-        showPage(signupPage);
-    }
-    
-    // Check API connection
-    checkApiConnection();
-    
-    // Set up event listeners
-    setupEventListeners();
-    
-    // Set up theme
-    const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
-    document.getElementById('theme-toggle').checked = isDarkTheme;
-    document.getElementById('settings-theme-toggle').checked = isDarkTheme;
-    toggleTheme(isDarkTheme);
-}
+// DOM Elements
+const apiStatusElement = document.getElementById('api-status');
 
 // Check API connection
 async function checkApiConnection() {
     try {
-        // Try to connect to the API
-        await apiRequest('/api/status');
-        apiStatus.textContent = 'API Connected';
-        apiStatus.className = 'api-status connected';
+        const response = await fetch(`${API_BASE_URL}/api/health`);
+        if (response.ok) {
+            apiStatusElement.textContent = 'API Connected';
+            apiStatusElement.className = 'api-status connected';
+        } else {
+            throw new Error('API not responding');
+        }
     } catch (error) {
-        apiStatus.textContent = 'API Disconnected - Using local storage';
-        apiStatus.className = 'api-status disconnected';
-        console.error('API connection failed, using local storage:', error);
+        apiStatusElement.textContent = 'API Disconnected - Using local storage';
+        apiStatusElement.className = 'api-status disconnected';
     }
 }
 
-// Set up event listeners
+// Initialize the app
+function initApp() {
+    checkApiConnection();
+    setupEventListeners();
+    checkAuthStatus();
+    loadThemePreference();
+}
+
+// Event Listeners
 function setupEventListeners() {
-    // Auth event listeners
-    signupBtn.addEventListener('click', handleSignup);
-    loginBtn.addEventListener('click', handleLogin);
-    loginLink.addEventListener('click', () => showPage(loginPage));
-    signupLink.addEventListener('click', () => showPage(signupPage));
-    logoutBtn.addEventListener('click', handleLogout);
+    // Auth navigation
+    document.getElementById('login-link').addEventListener('click', () => showPage('login-page'));
+    document.getElementById('signup-link').addEventListener('click', () => showPage('signup-page'));
     
-    // Folder event listeners
-    createFolderBtn.addEventListener('click', handleCreateFolder);
+    // Auth actions
+    document.getElementById('signup-btn').addEventListener('click', handleSignup);
+    document.getElementById('login-btn').addEventListener('click', handleLogin);
+    document.getElementById('logout-btn').addEventListener('click', handleLogout);
     
-    // Marks event listeners
-    addMarksBtn.addEventListener('click', handleAddMarks);
+    // Folder actions
+    document.getElementById('create-folder-btn').addEventListener('click', createFolder);
+    document.getElementById('create-subfolder-btn-main').addEventListener('click', showCreateSubfolderModal);
+    document.getElementById('create-subfolder-btn').addEventListener('click', createSubfolder);
     
-    // Settings event listeners
-    settingsBtn.addEventListener('click', () => showPage(settingsPage));
-    backBtn.addEventListener('click', () => showPage(appPage));
-    themeToggle.addEventListener('change', (e) => toggleTheme(e.target.checked));
-    settingsThemeToggle.addEventListener('change', (e) => {
-        toggleTheme(e.target.checked);
-        themeToggle.checked = e.target.checked;
+    // Marks actions
+    document.getElementById('add-marks-btn').addEventListener('click', addMarks);
+    document.getElementById('folder-select').addEventListener('change', filterMarksByFolder);
+    
+    // Settings actions
+    document.getElementById('settings-btn').addEventListener('click', () => showPage('settings-page'));
+    document.getElementById('back-btn').addEventListener('click', () => showPage('app-page'));
+    document.getElementById('change-username-btn').addEventListener('click', () => showModal('username-modal'));
+    document.getElementById('change-password-btn').addEventListener('click', () => showModal('password-modal'));
+    document.getElementById('save-username-btn').addEventListener('click', changeUsername);
+    document.getElementById('save-password-btn').addEventListener('click', changePassword);
+    document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
+    document.getElementById('delete-account-btn').addEventListener('click', deleteAccount);
+    
+    // Theme toggle
+    document.getElementById('theme-switch').addEventListener('change', toggleTheme);
+    
+    // Report download
+    document.getElementById('download-report-btn').addEventListener('click', downloadReport);
+    
+    // Modal close buttons
+    document.querySelectorAll('.modal-close').forEach(button => {
+        button.addEventListener('click', () => {
+            const modalId = button.getAttribute('data-modal');
+            hideModal(modalId);
+        });
     });
     
-    // Password visibility toggle
+    // Toggle password visibility
     document.querySelectorAll('.toggle-password').forEach(button => {
         button.addEventListener('click', function() {
             const input = this.previousElementSibling;
@@ -1429,321 +1575,560 @@ function setupEventListeners() {
     });
 }
 
-// Show a specific page
-function showPage(page) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    page.classList.add('active');
-}
-
-// Toggle theme
-function toggleTheme(isDark) {
-    localStorage.setItem('darkTheme', isDark);
-    if (isDark) {
-        document.body.classList.add('dark-theme');
-    } else {
-        document.body.classList.remove('dark-theme');
-    }
-}
-
-// Handle signup
+// Authentication functions
 async function handleSignup() {
     const username = document.getElementById('signup-username').value;
     const password = document.getElementById('signup-password').value;
-    const confirm = document.getElementById('signup-confirm').value;
+    const confirmPassword = document.getElementById('signup-confirm').value;
     
     if (!username || !password) {
-        showError('signup-error', 'Please enter both username and password');
+        showError('signup-error', 'Please fill in all fields');
         return;
     }
     
-    if (password !== confirm) {
+    if (password !== confirmPassword) {
         showError('signup-error', 'Passwords do not match');
         return;
     }
     
     try {
         const result = await authAPI.signup(username, password);
-        
-        if (result.success) {
-            localStorage.setItem('authToken', result.token);
-            localStorage.setItem('username', username);
-            currentUser = username;
-            document.getElementById('user-name').textContent = username;
-            document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
-            showPage(appPage);
-            loadUserData();
-        } else {
-            showError('signup-error', result.message || 'Signup failed');
-        }
+        localStorage.setItem('authToken', result.token);
+        currentUser = result.user;
+        showPage('app-page');
+        loadUserData();
     } catch (error) {
-        showError('signup-error', error.message || 'Signup failed');
+        showError('signup-error', error.message);
     }
 }
 
-// Handle login
 async function handleLogin() {
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
     
     if (!username || !password) {
-        showError('login-error', 'Please enter both username and password');
+        showError('login-error', 'Please fill in all fields');
         return;
     }
     
     try {
         const result = await authAPI.login(username, password);
-        
-        if (result.success) {
-            localStorage.setItem('authToken', result.token);
-            localStorage.setItem('username', username);
-            currentUser = username;
-            document.getElementById('user-name').textContent = username;
-            document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
-            showPage(appPage);
-            loadUserData();
-        } else {
-            showError('login-error', result.message || 'Login failed');
-        }
+        localStorage.setItem('authToken', result.token);
+        currentUser = result.user;
+        showPage('app-page');
+        loadUserData();
     } catch (error) {
-        showError('login-error', error.message || 'Login failed');
+        showError('login-error', error.message);
     }
 }
 
-// Handle logout
 function handleLogout() {
     localStorage.removeItem('authToken');
-    localStorage.removeItem('username');
     currentUser = null;
     folders = [];
-    currentFolderId = null;
-    currentMarks = [];
-    showPage(signupPage);
+    marks = [];
+    showPage('login-page');
+    clearUI();
 }
 
-// Show error message
-function showError(elementId, message) {
-    const errorElement = document.getElementById(elementId);
-    errorElement.textContent = message;
-    errorElement.style.display = 'block';
+function checkAuthStatus() {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+        // Verify token with backend
+        authAPI.loginWithToken()
+            .then(user => {
+                currentUser = user;
+                showPage('app-page');
+                loadUserData();
+            })
+            .catch(() => {
+                localStorage.removeItem('authToken');
+                showPage('login-page');
+            });
+    } else {
+        showPage('signup-page');
+    }
+}
+
+// Folder functions
+async function createFolder() {
+    const folderName = document.getElementById('folderName').value;
+    if (!folderName) {
+        alert('Please enter a folder name');
+        return;
+    }
     
-    setTimeout(() => {
-        errorElement.style.display = 'none';
-    }, 5000);
-}
-
-// Load user data
-async function loadUserData() {
     try {
-        const userData = await dataAPI.getUserData();
-        folders = userData.folders || [];
+        const newFolder = await dataAPI.createFolder(folderName);
+        folders.push(newFolder);
         renderFolders();
-        updateOverallStats();
+        updateFolderSelects();
+        document.getElementById('folderName').value = '';
     } catch (error) {
-        console.error('Failed to load user data:', error);
-        // Fallback to local storage
-        const localData = localStorage.getItem(`userData_${currentUser}`);
-        if (localData) {
-            folders = JSON.parse(localData);
-            renderFolders();
-            updateOverallStats();
-        }
+        alert('Error creating folder: ' + error.message);
     }
 }
 
-// Save user data
-async function saveUserData() {
+async function createSubfolder() {
+    const subfolderName = document.getElementById('subfolder-name').value;
+    const parentFolderId = document.getElementById('parent-folder').value;
+    
+    if (!subfolderName || !parentFolderId) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
     try {
-        await dataAPI.saveUserData(folders);
+        const newSubfolder = await dataAPI.createFolder(subfolderName, parentFolderId);
+        folders.push(newSubfolder);
+        renderFolders();
+        updateFolderSelects();
+        hideModal('subfolder-modal');
+        document.getElementById('subfolder-name').value = '';
     } catch (error) {
-        console.error('Failed to save user data to API:', error);
-        // Fallback to local storage
-        localStorage.setItem(`userData_${currentUser}`, JSON.stringify(folders));
+        alert('Error creating subfolder: ' + error.message);
     }
 }
 
-// Render folders
+function showCreateSubfolderModal() {
+    const parentFolderSelect = document.getElementById('parent-folder');
+    parentFolderSelect.innerHTML = '<option value="">Select a parent folder</option>';
+    
+    folders.forEach(folder => {
+        const option = document.createElement('option');
+        option.value = folder.id;
+        option.textContent = folder.name;
+        parentFolderSelect.appendChild(option);
+    });
+    
+    showModal('subfolder-modal');
+}
+
+function deleteFolder(folderId) {
+    if (!confirm('Are you sure you want to delete this folder? All marks in this folder will also be deleted.')) {
+        return;
+    }
+    
+    dataAPI.deleteFolder(folderId)
+        .then(() => {
+            folders = folders.filter(f => f.id !== folderId);
+            marks = marks.filter(m => m.folderId !== folderId);
+            renderFolders();
+            updateFolderSelects();
+            renderMarksTable();
+            updateStats();
+            renderChart();
+        })
+        .catch(error => {
+            alert('Error deleting folder: ' + error.message);
+        });
+}
+
+// Marks functions
+async function addMarks() {
+    const folderId = document.getElementById('current-folder').value;
+    const subject = document.getElementById('subject').value;
+    const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
+    const totalMarks = parseFloat(document.getElementById('total-marks').value);
+    
+    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
+        alert('Please fill in all fields with valid values');
+        return;
+    }
+    
+    if (marksObtained > totalMarks) {
+        alert('Marks obtained cannot be greater than total marks');
+        return;
+    }
+    
+    try {
+        const newMark = await dataAPI.addMarks(folderId, {
+            subject,
+            marksObtained,
+            totalMarks
+        });
+        
+        marks.push(newMark);
+        renderMarksTable();
+        updateStats();
+        renderChart();
+        
+        // Clear form
+        document.getElementById('subject').value = '';
+        document.getElementById('marks-obtained').value = '';
+        document.getElementById('total-marks').value = '';
+    } catch (error) {
+        alert('Error adding marks: ' + error.message);
+    }
+}
+
+function editMarks(markId) {
+    const mark = marks.find(m => m.id === markId);
+    if (!mark) return;
+    
+    const newSubject = prompt('Enter new subject name:', mark.subject);
+    if (!newSubject) return;
+    
+    const newMarksObtained = parseFloat(prompt('Enter new marks obtained:', mark.marksObtained));
+    if (isNaN(newMarksObtained)) return;
+    
+    const newTotalMarks = parseFloat(prompt('Enter new total marks:', mark.totalMarks));
+    if (isNaN(newTotalMarks)) return;
+    
+    if (newMarksObtained > newTotalMarks) {
+        alert('Marks obtained cannot be greater than total marks');
+        return;
+    }
+    
+    dataAPI.updateMarks(mark.folderId, markId, {
+        subject: newSubject,
+        marksObtained: newMarksObtained,
+        totalMarks: newTotalMarks
+    })
+    .then(updatedMark => {
+        const index = marks.findIndex(m => m.id === markId);
+        if (index !== -1) {
+            marks[index] = updatedMark;
+        }
+        renderMarksTable();
+        updateStats();
+        renderChart();
+    })
+    .catch(error => {
+        alert('Error updating marks: ' + error.message);
+    });
+}
+
+function deleteMarks(markId) {
+    if (!confirm('Are you sure you want to delete these marks?')) {
+        return;
+    }
+    
+    const mark = marks.find(m => m.id === markId);
+    if (!mark) return;
+    
+    dataAPI.deleteMarks(mark.folderId, markId)
+        .then(() => {
+            marks = marks.filter(m => m.id !== markId);
+            renderMarksTable();
+            updateStats();
+            renderChart();
+        })
+        .catch(error => {
+            alert('Error deleting marks: ' + error.message);
+        });
+}
+
+function filterMarksByFolder() {
+    const folderId = document.getElementById('folder-select').value;
+    renderMarksTable(folderId);
+}
+
+// Settings functions
+async function changeUsername() {
+    const newUsername = document.getElementById('new-username').value;
+    const password = document.getElementById('username-password').value;
+    
+    if (!newUsername || !password) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    try {
+        await authAPI.changeUsername(newUsername, password);
+        currentUser.username = newUsername;
+        document.getElementById('user-name').textContent = newUsername;
+        document.getElementById('user-avatar').textContent = newUsername.charAt(0).toUpperCase();
+        hideModal('username-modal');
+        alert('Username changed successfully!');
+    } catch (error) {
+        alert('Error changing username: ' + error.message);
+    }
+}
+
+async function changePassword() {
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmNewPassword = document.getElementById('confirm-new-password').value;
+    
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+        alert('New passwords do not match');
+        return;
+    }
+    
+    try {
+        await authAPI.changePassword(currentPassword, newPassword);
+        hideModal('password-modal');
+        alert('Password changed successfully!');
+    } catch (error) {
+        alert('Error changing password: ' + error.message);
+    }
+}
+
+async function clearAllData() {
+    if (!confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        await dataAPI.clearAllData();
+        folders = [];
+        marks = [];
+        renderFolders();
+        renderMarksTable();
+        updateStats();
+        renderChart();
+        alert('All data has been cleared successfully!');
+    } catch (error) {
+        alert('Error clearing data: ' + error.message);
+    }
+}
+
+async function deleteAccount() {
+    if (!confirm('Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.')) {
+        return;
+    }
+    
+    try {
+        await authAPI.deleteAccount();
+        handleLogout();
+        alert('Your account has been deleted successfully.');
+    } catch (error) {
+        alert('Error deleting account: ' + error.message);
+    }
+}
+
+// UI Rendering functions
 function renderFolders() {
+    const folderList = document.getElementById('folder-list');
     folderList.innerHTML = '';
     
     if (folders.length === 0) {
-        folderList.innerHTML = '<div class="no-folders-message">No folders yet. Create your first folder!</div>';
+        folderList.innerHTML = '<div class="no-folders-message">No folders created yet</div>';
         return;
     }
     
-    // Render each folder
-    folders.forEach(folder => {
-        const folderElement = createFolderElement(folder);
-        folderList.appendChild(folderElement);
+    // Build folder tree
+    const rootFolders = folders.filter(f => !f.parentId);
+    
+    if (rootFolders.length === 0) {
+        folderList.innerHTML = '<div class="no-folders-message">No folders created yet</div>';
+        return;
+    }
+    
+    const treeContainer = document.createElement('div');
+    treeContainer.className = 'folder-tree';
+    
+    rootFolders.forEach(folder => {
+        treeContainer.appendChild(createFolderTreeNode(folder));
     });
+    
+    folderList.appendChild(treeContainer);
 }
 
-// Create folder element
-function createFolderElement(folder) {
-    const folderElement = document.createElement('div');
-    folderElement.className = 'folder-item';
-    folderElement.dataset.folderId = folder.id;
+function createFolderTreeNode(folder) {
+    const node = document.createElement('div');
+    node.className = 'folder-tree-item';
     
-    // Calculate average percentage for this folder
-    const average = calculateFolderAverage(folder);
+    const content = document.createElement('div');
+    content.className = 'folder-tree-content';
     
-    folderElement.innerHTML = `
-        <div class="folder-main-content">
-            <span class="folder-icon">📁</span>
-            <span class="folder-name">${folder.name}</span>
-        </div>
-        <div class="folder-percentage">${average}%</div>
-        <div class="folder-actions">
-            <button class="action-btn edit" title="Edit folder">✏️</button>
-            <button class="action-btn delete" title="Delete folder">🗑️</button>
-        </div>
-    `;
+    // Toggle arrow for folders with children
+    const hasChildren = folders.some(f => f.parentId === folder.id);
+    if (hasChildren) {
+        const toggle = document.createElement('span');
+        toggle.className = 'toggle-arrow';
+        toggle.textContent = '▼';
+        toggle.addEventListener('click', () => {
+            const childrenContainer = node.querySelector('.folder-tree-children');
+            toggle.classList.toggle('collapsed');
+            childrenContainer.classList.toggle('collapsed');
+        });
+        content.appendChild(toggle);
+    } else {
+        // Add spacer for alignment
+        const spacer = document.createElement('span');
+        spacer.style.width = '15px';
+        spacer.style.display = 'inline-block';
+        content.appendChild(spacer);
+    }
     
-    // Add click event to select folder
-    folderElement.addEventListener('click', (e) => {
-        if (!e.target.closest('.folder-actions')) {
-            selectFolder(folder.id);
-        }
-    });
+    const folderIcon = document.createElement('span');
+    folderIcon.className = 'folder-icon';
+    folderIcon.textContent = '📁';
+    content.appendChild(folderIcon);
     
-    // Add event listeners for actions
-    const editBtn = folderElement.querySelector('.action-btn.edit');
-    const deleteBtn = folderElement.querySelector('.action-btn.delete');
+    const folderName = document.createElement('span');
+    folderName.className = 'folder-name';
+    folderName.textContent = folder.name;
+    folderName.title = folder.name;
+    content.appendChild(folderName);
     
-    editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        editFolder(folder.id);
-    });
+    // Calculate folder percentage
+    const folderMarks = marks.filter(m => m.folderId === folder.id);
+    let folderPercentage = 0;
+    if (folderMarks.length > 0) {
+        const totalPercentage = folderMarks.reduce((sum, mark) => {
+            return sum + (mark.marksObtained / mark.totalMarks) * 100;
+        }, 0);
+        folderPercentage = totalPercentage / folderMarks.length;
+    }
     
-    deleteBtn.addEventListener('click', (e) => {
+    const percentageSpan = document.createElement('span');
+    percentageSpan.className = 'folder-percentage';
+    percentageSpan.textContent = folderMarks.length > 0 ? `${folderPercentage.toFixed(1)}%` : 'Empty';
+    content.appendChild(percentageSpan);
+    
+    // Folder actions
+    const actions = document.createElement('div');
+    actions.className = 'folder-tree-actions';
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '🗑️';
+    deleteBtn.title = 'Delete folder';
+    deleteBtn.onclick = (e) => {
         e.stopPropagation();
         deleteFolder(folder.id);
+    };
+    actions.appendChild(deleteBtn);
+    
+    content.appendChild(actions);
+    node.appendChild(content);
+    
+    // Add children if any
+    const children = folders.filter(f => f.parentId === folder.id);
+    if (children.length > 0) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'folder-tree-children';
+        
+        children.forEach(child => {
+            childrenContainer.appendChild(createFolderTreeNode(child));
+        });
+        
+        node.appendChild(childrenContainer);
+    }
+    
+    // Select folder on click
+    content.addEventListener('click', () => {
+        document.querySelectorAll('.folder-tree-content').forEach(el => {
+            el.style.backgroundColor = '';
+        });
+        content.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        selectedFolderId = folder.id;
+        document.getElementById('current-folder').value = folder.id;
     });
     
-    return folderElement;
+    return node;
 }
 
-// Calculate folder average
-function calculateFolderAverage(folder) {
-    if (!folder.marks || folder.marks.length === 0) return 0;
+function renderMarksTable(folderId = 'all') {
+    const tableBody = document.getElementById('marks-table-body');
+    const emptyState = document.getElementById('empty-marks');
+    tableBody.innerHTML = '';
     
-    const total = folder.marks.reduce((sum, mark) => {
-        return sum + (mark.obtained / mark.total) * 100;
-    }, 0);
+    let filteredMarks = marks;
+    if (folderId !== 'all') {
+        filteredMarks = marks.filter(mark => mark.folderId === folderId);
+    }
     
-    return Math.round(total / folder.marks.length);
-}
-
-// Select folder
-function selectFolder(folderId) {
-    currentFolderId = folderId;
-    const folder = folders.find(f => f.id === folderId);
-    
-    if (!folder) return;
-    
-    currentFolderTitle.textContent = folder.name;
-    folderContent.style.display = 'none';
-    marksSection.style.display = 'block';
-    
-    // Update folder stats
-    const average = calculateFolderAverage(folder);
-    document.getElementById('folder-average').textContent = `${average}%`;
-    document.getElementById('total-marks-count').textContent = folder.marks ? folder.marks.length : 0;
-    document.getElementById('last-updated').textContent = new Date().toLocaleDateString();
-    
-    // Render marks
-    renderMarks(folder.marks || []);
-    
-    // Update chart
-    updateProgressChart(folder.marks || []);
-}
-
-// Render marks
-function renderMarks(marks) {
-    marksTableBody.innerHTML = '';
-    currentMarks = marks;
-    
-    if (marks.length === 0) {
-        marksTableBody.innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align: center; padding: 20px; color: var(--gray);">
-                    No marks added yet. Add your first marks above.
-                </td>
-            </tr>
-        `;
+    if (filteredMarks.length === 0) {
+        emptyState.style.display = 'block';
         return;
     }
     
-    marks.forEach((mark, index) => {
-        const percentage = Math.round((mark.obtained / mark.total) * 100);
-        let percentageClass = 'high';
+    emptyState.style.display = 'none';
+    
+    filteredMarks.forEach(mark => {
+        const percentage = (mark.marksObtained / mark.totalMarks) * 100;
+        const percentageClass = percentage >= 80 ? 'high' : percentage >= 50 ? 'medium' : 'low';
         
-        if (percentage < 60) {
-            percentageClass = 'low';
-        } else if (percentage < 80) {
-            percentageClass = 'medium';
-        }
+        const folder = folders.find(f => f.id === mark.folderId);
+        const folderName = folder ? folder.name : 'Unknown';
         
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${mark.subject}</td>
-            <td>${mark.obtained}/${mark.total}</td>
-            <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
-            <td>${new Date(mark.date).toLocaleDateString()}</td>
+            <td>${mark.marksObtained}</td>
+            <td>${mark.totalMarks}</td>
+            <td><span class="percentage ${percentageClass}">${percentage.toFixed(1)}%</span></td>
+            <td>${folderName}</td>
             <td class="action-buttons">
-                <button class="action-btn edit" data-index="${index}">Edit</button>
-                <button class="action-btn delete" data-index="${index}">Delete</button>
+                <button class="action-btn edit" onclick="editMarks('${mark.id}')">Edit</button>
+                <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">Delete</button>
             </td>
         `;
-        
-        marksTableBody.appendChild(row);
-    });
-    
-    // Add event listeners for action buttons
-    document.querySelectorAll('.action-buttons .edit').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const index = e.target.dataset.index;
-            editMark(index);
-        });
-    });
-    
-    document.querySelectorAll('.action-buttons .delete').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const index = e.target.dataset.index;
-            deleteMark(index);
-        });
+        tableBody.appendChild(row);
     });
 }
 
-// Update progress chart
-function updateProgressChart(marks) {
+function updateStats() {
+    // Update overall percentage
+    if (marks.length > 0) {
+        const totalPercentage = marks.reduce((sum, mark) => {
+            return sum + (mark.marksObtained / mark.totalMarks) * 100;
+        }, 0);
+        const overallPercentage = totalPercentage / marks.length;
+        document.getElementById('overall-percentage').textContent = `${overallPercentage.toFixed(1)}%`;
+    } else {
+        document.getElementById('overall-percentage').textContent = '0%';
+    }
+    
+    // Update subject count
+    document.getElementById('total-subjects').textContent = marks.length;
+    
+    // Update highest and lowest percentages
+    if (marks.length > 0) {
+        const percentages = marks.map(mark => (mark.marksObtained / mark.totalMarks) * 100);
+        const highestPercentage = Math.max(...percentages);
+        const lowestPercentage = Math.min(...percentages);
+        
+        document.getElementById('highest-percentage').textContent = `${highestPercentage.toFixed(1)}%`;
+        document.getElementById('lowest-percentage').textContent = `${lowestPercentage.toFixed(1)}%`;
+    } else {
+        document.getElementById('highest-percentage').textContent = '0%';
+        document.getElementById('lowest-percentage').textContent = '0%';
+    }
+}
+
+function renderChart() {
     const ctx = document.getElementById('progress-chart').getContext('2d');
     
-    // Destroy existing chart if it exists
-    if (progressChart) {
-        progressChart.destroy();
+    // Destroy previous chart if it exists
+    if (chart) {
+        chart.destroy();
     }
     
     if (marks.length === 0) {
-        document.getElementById('progress-chart').style.display = 'none';
         return;
     }
     
-    document.getElementById('progress-chart').style.display = 'block';
-    
     // Prepare data for chart
-    const labels = marks.map(mark => mark.subject);
-    const percentages = marks.map(mark => Math.round((mark.obtained / mark.total) * 100));
+    const subjects = marks.map(mark => mark.subject);
+    const percentages = marks.map(mark => (mark.marksObtained / mark.totalMarks) * 100);
     
     // Create chart
-    progressChart = new Chart(ctx, {
+    chart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: subjects,
             datasets: [{
                 label: 'Percentage',
                 data: percentages,
-                backgroundColor: 'rgba(67, 97, 238, 0.5)',
-                borderColor: 'rgba(67, 97, 238, 1)',
+                backgroundColor: percentages.map(p => {
+                    if (p >= 80) return 'rgba(6, 214, 160, 0.7)';
+                    if (p >= 50) return 'rgba(255, 209, 102, 0.7)';
+                    return 'rgba(239, 71, 111, 0.7)';
+                }),
+                borderColor: percentages.map(p => {
+                    if (p >= 80) return 'rgba(6, 214, 160, 1)';
+                    if (p >= 50) return 'rgba(255, 209, 102, 1)';
+                    return 'rgba(239, 71, 111, 1)';
+                }),
                 borderWidth: 1
             }]
         },
@@ -1768,7 +2153,7 @@ function updateProgressChart(marks) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return `Percentage: ${context.raw}%`;
+                            return `Percentage: ${context.raw.toFixed(1)}%`;
                         }
                     }
                 }
@@ -1777,319 +2162,113 @@ function updateProgressChart(marks) {
     });
 }
 
-// Update overall stats
-function updateOverallStats() {
-    if (folders.length === 0) {
-        document.getElementById('overall-average').textContent = '0%';
-        return;
-    }
+function updateFolderSelects() {
+    const currentFolderSelect = document.getElementById('current-folder');
+    const folderFilterSelect = document.getElementById('folder-select');
     
-    let totalPercentage = 0;
-    let folderCount = 0;
+    // Clear existing options except the first one
+    currentFolderSelect.innerHTML = '<option value="">Select a folder</option>';
+    folderFilterSelect.innerHTML = '<option value="all">All Folders</option>';
     
+    // Add folders to selects
     folders.forEach(folder => {
-        if (folder.marks && folder.marks.length > 0) {
-            totalPercentage += calculateFolderAverage(folder);
-            folderCount++;
-        }
+        const option1 = document.createElement('option');
+        option1.value = folder.id;
+        option1.textContent = folder.name;
+        currentFolderSelect.appendChild(option1);
+        
+        const option2 = document.createElement('option');
+        option2.value = folder.id;
+        option2.textContent = folder.name;
+        folderFilterSelect.appendChild(option2);
     });
-    
-    const overallAverage = folderCount > 0 ? Math.round(totalPercentage / folderCount) : 0;
-    document.getElementById('overall-average').textContent = `${overallAverage}%`;
 }
 
-// Handle create folder
-async function handleCreateFolder() {
-    const name = folderNameInput.value.trim();
+// Utility functions
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    document.getElementById(pageId).classList.add('active');
+}
+
+function showModal(modalId) {
+    document.getElementById(modalId).classList.add('active');
+}
+
+function hideModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+function showError(elementId, message) {
+    const errorElement = document.getElementById(elementId);
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+    setTimeout(() => {
+        errorElement.style.display = 'none';
+    }, 5000);
+}
+
+function loadThemePreference() {
+    const darkMode = localStorage.getItem('darkMode') === 'true';
+    document.getElementById('theme-switch').checked = darkMode;
+    document.body.classList.toggle('dark-theme', darkMode);
+}
+
+function toggleTheme() {
+    const darkMode = document.getElementById('theme-switch').checked;
+    localStorage.setItem('darkMode', darkMode);
+    document.body.classList.toggle('dark-theme', darkMode);
+}
+
+function downloadReport() {
+    html2canvas(document.querySelector('.progress-report')).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'progress-report.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+}
+
+function clearUI() {
+    document.getElementById('folder-list').innerHTML = '';
+    document.getElementById('marks-table-body').innerHTML = '';
+    document.getElementById('overall-percentage').textContent = '0%';
+    document.getElementById('total-subjects').textContent = '0';
+    document.getElementById('highest-percentage').textContent = '0%';
+    document.getElementById('lowest-percentage').textContent = '0%';
     
-    if (!name) {
-        alert('Please enter a folder name');
-        return;
+    if (chart) {
+        chart.destroy();
+        chart = null;
     }
+}
+
+// Data loading
+async function loadUserData() {
+    if (!currentUser) return;
     
     try {
-        const newFolder = {
-            id: Date.now().toString(),
-            name: name,
-            marks: [],
-            createdAt: new Date().toISOString()
-        };
+        const userData = await dataAPI.getUserData();
+        folders = userData.folders || [];
+        marks = userData.marks || [];
         
-        // Try to save to API
-        await dataAPI.createFolder(name);
+        document.getElementById('user-name').textContent = currentUser.username;
+        document.getElementById('user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
         
-        // Add to local state
-        folders.push(newFolder);
         renderFolders();
-        folderNameInput.value = '';
-        
-        // Save data
-        saveUserData();
+        updateFolderSelects();
+        renderMarksTable();
+        updateStats();
+        renderChart();
     } catch (error) {
-        console.error('Failed to create folder:', error);
-        // Fallback to local storage
-        const newFolder = {
-            id: Date.now().toString(),
-            name: name,
-            marks: [],
-            createdAt: new Date().toISOString()
-        };
-        
-        folders.push(newFolder);
-        renderFolders();
-        folderNameInput.value = '';
-        saveUserData();
-    }
-}
-
-// Edit folder
-function editFolder(folderId) {
-    const folder = folders.find(f => f.id === folderId);
-    if (!folder) return;
-    
-    const newName = prompt('Enter new folder name:', folder.name);
-    if (newName && newName.trim() !== '') {
-        folder.name = newName.trim();
-        renderFolders();
-        saveUserData();
-        
-        // Update current folder title if this is the selected folder
-        if (currentFolderId === folderId) {
-            currentFolderTitle.textContent = newName.trim();
-        }
-    }
-}
-
-// Delete folder
-async function deleteFolder(folderId) {
-    if (!confirm('Are you sure you want to delete this folder? All marks in this folder will be lost.')) {
-        return;
-    }
-    
-    try {
-        await dataAPI.deleteFolder(folderId);
-        
-        // Remove from local state
-        folders = folders.filter(f => f.id !== folderId);
-        renderFolders();
-        
-        // If the deleted folder was the current one, reset the view
-        if (currentFolderId === folderId) {
-            currentFolderId = null;
-            currentFolderTitle.textContent = 'Select a Folder';
-            marksSection.style.display = 'none';
-            folderContent.style.display = 'block';
-        }
-        
-        // Save data
-        saveUserData();
-        updateOverallStats();
-    } catch (error) {
-        console.error('Failed to delete folder:', error);
-        // Fallback to local storage
-        folders = folders.filter(f => f.id !== folderId);
-        renderFolders();
-        
-        if (currentFolderId === folderId) {
-            currentFolderId = null;
-            currentFolderTitle.textContent = 'Select a Folder';
-            marksSection.style.display = 'none';
-            folderContent.style.display = 'block';
-        }
-        
-        saveUserData();
-        updateOverallStats();
-    }
-}
-
-// Handle add marks
-async function handleAddMarks() {
-    if (!currentFolderId) {
-        alert('Please select a folder first');
-        return;
-    }
-    
-    const subject = document.getElementById('subject-name').value.trim();
-    const obtained = parseFloat(document.getElementById('marks-obtained').value);
-    const total = parseFloat(document.getElementById('total-marks').value);
-    const date = document.getElementById('marks-date').value;
-    
-    if (!subject || isNaN(obtained) || isNaN(total) || !date) {
-        alert('Please fill in all fields');
-        return;
-    }
-    
-    if (obtained > total) {
-        alert('Marks obtained cannot be greater than total marks');
-        return;
-    }
-    
-    const folder = folders.find(f => f.id === currentFolderId);
-    if (!folder) return;
-    
-    try {
-        const newMark = {
-            id: Date.now().toString(),
-            subject,
-            obtained,
-            total,
-            date,
-            createdAt: new Date().toISOString()
-        };
-        
-        // Try to save to API
-        await dataAPI.addMarks(currentFolderId, newMark);
-        
-        // Add to local state
-        if (!folder.marks) folder.marks = [];
-        folder.marks.push(newMark);
-        
-        // Update UI
-        renderMarks(folder.marks);
-        updateProgressChart(folder.marks);
-        
-        // Update stats
-        const average = calculateFolderAverage(folder);
-        document.getElementById('folder-average').textContent = `${average}%`;
-        document.getElementById('total-marks-count').textContent = folder.marks.length;
-        document.getElementById('last-updated').textContent = new Date().toLocaleDateString();
-        
-        // Clear form
-        document.getElementById('subject-name').value = '';
-        document.getElementById('marks-obtained').value = '';
-        document.getElementById('total-marks').value = '';
-        document.getElementById('marks-date').value = '';
-        
-        // Save data
-        saveUserData();
-        updateOverallStats();
-    } catch (error) {
-        console.error('Failed to add marks:', error);
-        // Fallback to local storage
-        const newMark = {
-            id: Date.now().toString(),
-            subject,
-            obtained,
-            total,
-            date,
-            createdAt: new Date().toISOString()
-        };
-        
-        if (!folder.marks) folder.marks = [];
-        folder.marks.push(newMark);
-        
-        renderMarks(folder.marks);
-        updateProgressChart(folder.marks);
-        
-        const average = calculateFolderAverage(folder);
-        document.getElementById('folder-average').textContent = `${average}%`;
-        document.getElementById('total-marks-count').textContent = folder.marks.length;
-        document.getElementById('last-updated').textContent = new Date().toLocaleDateString();
-        
-        document.getElementById('subject-name').value = '';
-        document.getElementById('marks-obtained').value = '';
-        document.getElementById('total-marks').value = '';
-        document.getElementById('marks-date').value = '';
-        
-        saveUserData();
-        updateOverallStats();
-    }
-}
-
-// Edit mark
-function editMark(index) {
-    const mark = currentMarks[index];
-    if (!mark) return;
-    
-    const newSubject = prompt('Enter subject name:', mark.subject);
-    if (!newSubject || newSubject.trim() === '') return;
-    
-    const newObtained = parseFloat(prompt('Enter marks obtained:', mark.obtained));
-    if (isNaN(newObtained)) return;
-    
-    const newTotal = parseFloat(prompt('Enter total marks:', mark.total));
-    if (isNaN(newTotal) || newObtained > newTotal) {
-        alert('Marks obtained cannot be greater than total marks');
-        return;
-    }
-    
-    const newDate = prompt('Enter date (YYYY-MM-DD):', mark.date);
-    if (!newDate) return;
-    
-    // Update the mark
-    mark.subject = newSubject.trim();
-    mark.obtained = newObtained;
-    mark.total = newTotal;
-    mark.date = newDate;
-    
-    // Update UI
-    renderMarks(currentMarks);
-    updateProgressChart(currentMarks);
-    
-    // Update stats
-    const folder = folders.find(f => f.id === currentFolderId);
-    if (folder) {
-        const average = calculateFolderAverage(folder);
-        document.getElementById('folder-average').textContent = `${average}%`;
-    }
-    
-    // Save data
-    saveUserData();
-    updateOverallStats();
-}
-
-// Delete mark
-async function deleteMark(index) {
-    if (!confirm('Are you sure you want to delete this mark?')) {
-        return;
-    }
-    
-    const mark = currentMarks[index];
-    if (!mark) return;
-    
-    try {
-        await dataAPI.deleteMarks(currentFolderId, mark.id);
-        
-        // Remove from local state
-        currentMarks.splice(index, 1);
-        
-        // Update UI
-        renderMarks(currentMarks);
-        updateProgressChart(currentMarks);
-        
-        // Update stats
-        const folder = folders.find(f => f.id === currentFolderId);
-        if (folder) {
-            const average = calculateFolderAverage(folder);
-            document.getElementById('folder-average').textContent = `${average}%`;
-            document.getElementById('total-marks-count').textContent = folder.marks.length;
-        }
-        
-        // Save data
-        saveUserData();
-        updateOverallStats();
-    } catch (error) {
-        console.error('Failed to delete mark:', error);
-        // Fallback to local storage
-        currentMarks.splice(index, 1);
-        
-        renderMarks(currentMarks);
-        updateProgressChart(currentMarks);
-        
-        const folder = folders.find(f => f.id === currentFolderId);
-        if (folder) {
-            const average = calculateFolderAverage(folder);
-            document.getElementById('folder-average').textContent = `${average}%`;
-            document.getElementById('total-marks-count').textContent = folder.marks.length;
-        }
-        
-        saveUserData();
-        updateOverallStats();
+        console.error('Error loading user data:', error);
+        alert('Failed to load user data. Please try again.');
     }
 }
 
 // Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
 </html>
