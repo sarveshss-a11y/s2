@@ -1072,22 +1072,7 @@ const dataAPI = {
                         <p>Select a folder from the sidebar or create a new one to get started</p>
                     </div>
                 </div>
-                <!-- Popup for creating folder/subfolder -->
-<div id="popup" class="hidden" style="
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: white; padding: 20px;
-    border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    z-index: 1000; text-align: center;
-">
-  <h3 id="popupTitle">Create Folder</h3>
-  <input type="text" id="popupFolderName" placeholder="Enter folder name"
-         style="padding: 8px; width: 220px; margin-bottom: 10px;">
-  <br>
-  <button onclick="createFolderFromPopup()" style="margin-right:10px;">Create</button>
-  <button onclick="closePopup()">Cancel</button>
-</div>
-
+                
                 <div id="marks-section" style="display: none;">
                     <div class="stats-cards">
                         <div class="stat-card">
@@ -1545,38 +1530,6 @@ async function saveUserData() {
         localStorage.setItem(`userData_${currentUser}`, JSON.stringify(folders));
     }
 }
-async function createFolderFromPopup() {
-    const folderName = document.getElementById('popupFolderName').value.trim();
-    if (!folderName) return;
-
-    try {
-        let body = { name: folderName };
-        if (currentFolderId) {
-            body.parentId = currentFolderId; // attach subfolder to parent
-        }
-
-        const response = await apiRequest('/api/folders', {
-            method: 'POST',
-            body
-        });
-
-        if (response.folder) {
-            if (currentFolderId) {
-                const parentFolder = findFolderById(folders, currentFolderId);
-                if (parentFolder) {
-                    parentFolder.subfolders.push(response.folder);
-                }
-            } else {
-                folders.push(response.folder);
-            }
-            renderFolders();
-        }
-    } catch (error) {
-        console.error('Error creating folder:', error);
-    } finally {
-        closePopup();
-    }
-}
 
 // Create a new folder
 async function createFolder() {
@@ -1636,18 +1589,42 @@ function renderFolders() {
     folders.forEach(folder => {
         const folderElement = document.createElement('div');
         folderElement.classList.add('folder-item');
+        
+        folderElement.innerHTML = `
+            <span>${folder.name}</span>
+            <button class="btn-add-subfolder">➕</button>
+        `;
 
-        // folder name, buttons etc…
+        // 👇 NEW HANDLER FOR SUBFOLDER BUTTON
+        folderElement.querySelector('.btn-add-subfolder').addEventListener('click', async (e) => {
+    e.stopPropagation();
 
-        folderElement.querySelector('.btn-add-subfolder').addEventListener('click', (e) => {
-            e.stopPropagation();
-            currentFolderId = folder.id;
-            document.getElementById('folderName').focus();
+    // Show JS popup to enter subfolder name
+    const subfolderName = prompt("Enter subfolder name:");
+    if (!subfolderName || !subfolderName.trim()) return;
+
+    try {
+        // Send request to backend
+        const response = await apiRequest('/api/folders', {
+            method: 'POST',
+            body: { name: subfolderName.trim(), parentId: folder.id }
         });
+
+        if (response.folder) {
+            // Add to local state
+            folder.subfolders.push(response.folder);
+            renderFolders();
+        }
+    } catch (error) {
+        console.error('Error creating subfolder:', error);
+    }
+});
+
 
         folderList.appendChild(folderElement);
     });
 }
+
 
 // Create folder element recursively
 function createFolderElement(folder, level = 0) {
@@ -1951,23 +1928,6 @@ function renderMarksTable(marks) {
         
         tableBody.appendChild(row);
     });
-}
-function showPopup(parentId = null) {
-    currentFolderId = parentId; // if set, it’s a subfolder
-    document.getElementById('popup').classList.remove('hidden');
-    document.getElementById('popupFolderName').value = '';
-    document.getElementById('popupFolderName').focus();
-
-    if (parentId) {
-        document.getElementById('popupTitle').innerText = "Create Subfolder";
-    } else {
-        document.getElementById('popupTitle').innerText = "Create Folder";
-    }
-}
-
-function closePopup() {
-    document.getElementById('popup').classList.add('hidden');
-    currentFolderId = null;
 }
 
 // Edit a mark
