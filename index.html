@@ -944,6 +944,7 @@ const authAPI = {
 };
 
 // Data API functions
+// Data API functions
 const dataAPI = {
     getUserData: async () => await apiRequest('/api/user'),
     
@@ -1430,62 +1431,32 @@ function renderFolderList() {
 }
 
 // Create folder element
-function createFolderElement(folder, level = 0) {
-    const folderElement = document.createElement('div');
-    folderElement.className = 'folder-item';
-    folderElement.dataset.id = folder.id;
+// In your frontend, update the createFolder function:
+async function createFolder() {
+    const folderNameInput = document.getElementById('folderName');
+    const folderName = folderNameInput.value.trim();
     
-    // Calculate average percentage
-    const average = calculateFolderAverage(folder);
-    
-    folderElement.innerHTML = `
-        <div class="folder-main-content">
-            <span class="toggle-arrow ${folder.collapsed ? 'collapsed' : ''}" style="margin-left: ${level * 15}px;">▶</span>
-            <span class="folder-icon">📁</span>
-            <span class="folder-name">${folder.name}</span>
-            <span class="folder-percentage">${average}%</span>
-        </div>
-        <div class="folder-actions">
-            <button class="add-subfolder-btn" title="Add Subfolder">➕</button>
-            <button class="delete-folder-btn" title="Delete Folder">🗑️</button>
-        </div>
-    `;
-    
-    // Add event listeners
-    folderElement.querySelector('.folder-main-content').addEventListener('click', () => {
-        currentFolderId = folder.id;
-        showFolderContent(folder.id);
-    });
-    
-    folderElement.querySelector('.toggle-arrow').addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleFolderCollapse(folder.id);
-    });
-    
-    folderElement.querySelector('.add-subfolder-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        addSubfolder(folder.id);
-    });
-    
-    folderElement.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteFolder(folder.id);
-    });
-    
-    // Add subfolders if any
-    if (folder.subfolders && folder.subfolders.length > 0 && !folder.collapsed) {
-        const subfolderContainer = document.createElement('div');
-        subfolderContainer.className = 'subfolder-container';
-        
-        folder.subfolders.forEach(subfolder => {
-            const subfolderElement = createFolderElement(subfolder, level + 1);
-            subfolderContainer.appendChild(subfolderElement);
-        });
-        
-        folderElement.appendChild(subfolderContainer);
+    if (!folderName) {
+        alert('Please enter a folder name');
+        return;
     }
     
-    return folderElement;
+    try {
+        const response = await apiRequest('/api/folders', {
+            method: 'POST',
+            body: { name: folderName }
+        });
+        
+        // Refresh folders from server
+        const userData = await dataAPI.getUserData();
+        folders = userData.folders || [];
+        
+        folderNameInput.value = '';
+        renderFolderList();
+    } catch (error) {
+        console.error('Error creating folder:', error);
+        alert('Failed to create folder');
+    }
 }
 
 // Toggle folder collapse state
