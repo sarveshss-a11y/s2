@@ -1532,41 +1532,44 @@ async function saveUserData() {
 }
 
 // Create a new folder
-function createFolder() {
-    const folderNameInput = document.getElementById('folderName');
-    const folderName = folderNameInput.value.trim();
-    
-    if (!folderName) {
-        alert('Please enter a folder name');
-        return;
-    }
-    
-    const newFolder = {
-        id: Date.now().toString(),
-        name: folderName,
-        marks: [],
-        subfolders: [],
-        expanded: false
-    };
-    
-    // If a folder is selected, add as subfolder
-    if (currentFolderId) {
-        const parentFolder = findFolderById(folders, currentFolderId);
-        if (parentFolder) {
-            parentFolder.subfolders.push(newFolder);
-            renderFolders();
-            saveUserData();
-            folderNameInput.value = '';
-            return;
+async function createFolder() {
+    const folderName = document.getElementById('folderName').value.trim();
+    if (!folderName) return;
+
+    try {
+        let body = { name: folderName };
+        if (currentFolderId) {
+            body.parentId = currentFolderId; // attach subfolder to parent
         }
+
+        // Call backend API
+        const response = await apiRequest('/api/folders', {
+            method: 'POST',
+            body
+        });
+
+        if (response.folder) {
+            if (currentFolderId) {
+                // Find parent folder in local state and add
+                const parentFolder = findFolderById(folders, currentFolderId);
+                if (parentFolder) {
+                    parentFolder.subfolders.push(response.folder);
+                }
+            } else {
+                // Add as top-level folder
+                folders.push(response.folder);
+            }
+
+            renderFolders();
+        }
+
+        document.getElementById('folderName').value = '';
+        currentFolderId = null;
+    } catch (error) {
+        console.error('Error creating folder:', error);
     }
-    
-    // Otherwise add as top-level folder
-    folders.push(newFolder);
-    renderFolders();
-    saveUserData();
-    folderNameInput.value = '';
 }
+
 
 // Find folder by ID recursively
 function findFolderById(folderList, id) {
