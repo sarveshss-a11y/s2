@@ -1333,6 +1333,31 @@ const dataAPI = {
                         <!-- Folders will be dynamically added here -->
                     </div>
                 </div>
+                <!-- Subfolder Modal -->
+<div class="modal" id="subfolder-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Create Subfolder</h3>
+            <button class="modal-close" data-modal="subfolder-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="parent-folder">Parent Folder</label>
+                <select id="parent-folder" class="form-control">
+                    <option value="">Select a parent folder</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="subfolder-name">Subfolder Name</label>
+                <input type="text" id="subfolder-name" class="form-control" placeholder="Enter subfolder name">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-warning" data-modal="subfolder-modal">Cancel</button>
+            <button class="btn btn-success" id="create-subfolder-btn">Create Subfolder</button>
+        </div>
+    </div>
+</div>
                 
                 <div class="nav-section">
                     <div class="nav-title">Overall Performance</div>
@@ -1718,14 +1743,22 @@ async function addMarks() {
     }
 
     try {
-        const newMark = await dataAPI.addMarks(folderId, {
+        // Calculate percentage
+        const percentage = (marksObtained / totalMarks) * 100;
+        
+        // Create the marks data object
+        const marksData = {
             subject,
             marksObtained,
             totalMarks,
+            percentage,
             date
-        });
+        };
 
-        // Add the new mark to our local state
+        // Send to API
+        const newMark = await dataAPI.addMarks(folderId, marksData);
+
+        // Add the new mark to our local state with the folderId
         marks.push({
             ...newMark,
             folderId: folderId
@@ -1744,9 +1777,14 @@ async function addMarks() {
         
         alert('Marks added successfully!');
     } catch (error) {
+        console.error('Error adding marks:', error);
         alert('Error adding marks: ' + error.message);
     }
 }
+
+
+
+
 function handleLogout() {
     localStorage.removeItem('authToken');
     currentUser = null;
@@ -1830,13 +1868,22 @@ function showCreateSubfolderModal() {
     const parentFolderSelect = document.getElementById('parent-folder');
     parentFolderSelect.innerHTML = '<option value="">Select a parent folder</option>';
     
-    folders.forEach(folder => {
-        const option = document.createElement('option');
-        option.value = folder.id;
-        option.textContent = folder.name;
-        parentFolderSelect.appendChild(option);
-    });
+    // Function to add folders recursively to dropdown
+    function addFoldersToDropdown(foldersArray, level = 0) {
+        foldersArray.forEach(folder => {
+            const option = document.createElement('option');
+            option.value = folder.id;
+            option.textContent = '→ '.repeat(level) + folder.name;
+            parentFolderSelect.appendChild(option);
+            
+            // Add subfolders recursively
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                addFoldersToDropdown(folder.subfolders, level + 1);
+            }
+        });
+    }
     
+    addFoldersToDropdown(folders);
     showModal('subfolder-modal');
 }
 
@@ -2018,13 +2065,14 @@ function renderFolders() {
         return;
     }
 
-    function createFolderElement(folder, level = 0) {
+    // Function to render folders recursively
+    function renderFolderRecursive(folder, level = 0) {
         const folderDiv = document.createElement('div');
         folderDiv.className = 'folder-tree-item';
-        folderDiv.style.marginLeft = level > 0 ? `${level * 20}px` : '0';
-
+        
         const contentDiv = document.createElement('div');
         contentDiv.className = 'folder-tree-content';
+        contentDiv.style.paddingLeft = (level * 20) + 'px';
         
         // Toggle arrow for folders with subfolders
         const hasSubfolders = folder.subfolders && folder.subfolders.length > 0;
@@ -2089,7 +2137,7 @@ function renderFolders() {
         // Add subfolders if not collapsed
         if (hasSubfolders && !folder.collapsed) {
             folder.subfolders.forEach(subfolder => {
-                folderDiv.appendChild(createFolderElement(subfolder, level + 1));
+                folderDiv.appendChild(renderFolderRecursive(subfolder, level + 1));
             });
         }
 
@@ -2108,8 +2156,9 @@ function renderFolders() {
         return folderDiv;
     }
 
+    // Render all top-level folders
     folders.forEach(folder => {
-        folderList.appendChild(createFolderElement(folder));
+        folderList.appendChild(renderFolderRecursive(folder));
     });
 }
 
@@ -2208,6 +2257,39 @@ function createFolderTreeNode(folder) {
     });
     
     return node;
+}
+
+// Toggle password visibility - MOVE THIS TO THE BOTTOM OF THE FILE
+function setupPasswordToggles() {
+    document.querySelectorAll('.toggle-password').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                this.textContent = '🔒';
+            } else {
+                input.type = 'password';
+                this.textContent = '👁️';
+            }
+        });
+    });
+}
+
+// Add this function call at the end of your initApp function
+function initApp() {
+    checkApiConnection();
+    setupEventListeners();
+    checkAuthStatus();
+    loadThemePreference();
+    
+    // ✅ Set saved chart type in dropdown when app loads
+    const chartSelect = document.getElementById('chart-type-select');
+    if (chartSelect) {
+        chartSelect.value = chartType;
+    }
+    
+    // ✅ Setup password toggles after pages are loaded
+    setTimeout(setupPasswordToggles, 100);
 }
 
 function renderMarksTable(folderId = 'all') {
@@ -2361,18 +2443,24 @@ function updateFolderSelects() {
     currentFolderSelect.innerHTML = '<option value="">Select a folder</option>';
     folderFilterSelect.innerHTML = '<option value="all">All Folders</option>';
     
-    // Add folders to selects
-    folders.forEach(folder => {
-        const option1 = document.createElement('option');
-        option1.value = folder.id;
-        option1.textContent = folder.name;
-        currentFolderSelect.appendChild(option1);
-        
-        const option2 = document.createElement('option');
-        option2.value = folder.id;
-        option2.textContent = folder.name;
-        folderFilterSelect.appendChild(option2);
-    });
+    // Function to add folders recursively to dropdown
+    function addFoldersToSelect(selectElement, foldersArray, level = 0) {
+        foldersArray.forEach(folder => {
+            const option = document.createElement('option');
+            option.value = folder.id;
+            option.textContent = '→ '.repeat(level) + folder.name;
+            selectElement.appendChild(option);
+            
+            // Add subfolders recursively
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                addFoldersToSelect(selectElement, folder.subfolders, level + 1);
+            }
+        });
+    }
+    
+    // Add folders to both selects
+    addFoldersToSelect(currentFolderSelect, folders);
+    addFoldersToSelect(folderFilterSelect, folders);
 }
 
 // Utility functions
