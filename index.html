@@ -7,6 +7,26 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
+        /* Average percentage box */
+#average-percentage {
+    font-weight: bold;
+    font-size: 1.2rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+/* Light mode */
+body.light-mode #average-percentage {
+    color: #1a1a1a;       /* dark text */
+    background-color: #f3f3f3;
+}
+
+/* Dark mode */
+body.dark-mode #average-percentage {
+    color: #ffffff;       /* white text */
+    background-color: #333333;
+}
+
         .api-status {
             position: fixed;
             bottom: 10px;
@@ -1998,13 +2018,13 @@ function renderFolders() {
         const folderDiv = document.createElement('div');
         folderDiv.className = 'folder-tree-item';
 
-        // Toggle arrow
+        // Toggle arrow (only if subfolders exist)
         const toggle = document.createElement('span');
-        toggle.textContent = folder.collapsed ? '▶' : '▼';
+        toggle.textContent = (folder.subfolders && folder.subfolders.length > 0 && !folder.collapsed) ? '▼' : '▶';
         toggle.className = 'toggle-arrow';
         toggle.onclick = () => {
             folder.collapsed = !folder.collapsed;
-            renderFolders(); // re-render to apply state
+            renderFolders();
         };
 
         // Folder name
@@ -2012,12 +2032,10 @@ function renderFolders() {
         nameSpan.textContent = folder.name;
         nameSpan.className = 'folder-name';
 
-        // Folder actions
+        // Actions (delete, etc.)
         const actions = document.createElement('div');
         actions.className = 'folder-actions';
-        actions.innerHTML = `
-            <button onclick="deleteFolder('${folder.id}')">🗑️</button>
-        `;
+        actions.innerHTML = `<button onclick="deleteFolder('${folder.id}')">🗑️</button>`;
 
         // Header row
         const header = document.createElement('div');
@@ -2028,7 +2046,7 @@ function renderFolders() {
 
         folderDiv.appendChild(header);
 
-        // Subfolders
+        // Recursive rendering for subfolders
         if (folder.subfolders && folder.subfolders.length > 0) {
             const childrenDiv = document.createElement('div');
             childrenDiv.className = 'subfolder-container';
@@ -2048,6 +2066,7 @@ function renderFolders() {
         folderList.appendChild(createFolderElement(folder));
     });
 }
+
 
 
 function createFolderTreeNode(folder) {
