@@ -1067,6 +1067,7 @@ const API_BASE_URL = window.location.hostname === 'localhost' || window.location
     : 'https://sarveshbackend.onrender.com'; // Replace with your Render URL when deployed
 
 // API Request Function
+// Modify your apiRequest function to handle errors better
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = localStorage.getItem('authToken');
@@ -1090,19 +1091,35 @@ async function apiRequest(endpoint, options = {}) {
 
     try {
         const response = await fetch(url, config);
+        
         // Check if response is JSON
         const contentType = response.headers.get('content-type');
-        const data = contentType && contentType.includes('application/json') 
-            ? await response.json() 
-            : await response.text();
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
 
         if (!response.ok) {
-            throw new Error(data.message || 'Something went wrong');
+            // If we got a 401, the token might be invalid
+            if (response.status === 401) {
+                localStorage.removeItem('authToken');
+                showPage('login-page');
+            }
+            throw new Error(data.message || `Server error: ${response.status}`);
         }
 
         return data;
     } catch (error) {
         console.error('API request failed:', error);
+        // If it's a network error, try to use local storage
+        if (error.message.includes('Failed to fetch')) {
+            apiStatusElement.textContent = 'API Disconnected - Using local storage';
+            apiStatusElement.className = 'api-status disconnected';
+            // You might want to implement local storage fallback here
+        }
         throw error;
     }
 }
@@ -1615,6 +1632,10 @@ function initApp() {
 
 // Event Listeners
 function setupEventListeners() {
+    document.getElementById('current-folder').addEventListener('change', function() {
+    selectedFolderId = this.value;
+});
+
     // Auth navigation
     document.getElementById('login-link').addEventListener('click', () => showPage('login-page'));
     document.getElementById('signup-link').addEventListener('click', () => showPage('signup-page'));
@@ -2142,16 +2163,20 @@ function renderFolders() {
         }
 
         // Click to select folder
-        contentDiv.addEventListener('click', (e) => {
-            if (e.target !== toggle && e.target !== deleteBtn) {
-                document.querySelectorAll('.folder-tree-content').forEach(el => {
-                    el.style.backgroundColor = '';
-                });
-                contentDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                selectedFolderId = folder.id;
-                document.getElementById('current-folder').value = folder.id;
-            }
+       contentDiv.addEventListener('click', (e) => {
+    if (e.target !== toggle && e.target !== deleteBtn) {
+        document.querySelectorAll('.folder-tree-content').forEach(el => {
+            el.style.backgroundColor = '';
         });
+        contentDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        selectedFolderId = folder.id;
+        document.getElementById('current-folder').value = folder.id;
+        
+        // Also update the folder filter to show only this folder's marks
+        document.getElementById('folder-select').value = folder.id;
+        filterMarksByFolder();
+    }
+});
 
         return folderDiv;
     }
@@ -2310,7 +2335,10 @@ function renderMarksTable(folderId = 'all') {
     emptyState.style.display = 'none';
     
     filteredMarks.forEach(mark => {
-        const percentage = (mark.marksObtained / mark.totalMarks) * 100;
+        // Handle cases where mark data might be incomplete
+        const marksObtained = mark.marksObtained || 0;
+        const totalMarks = mark.totalMarks || 0;
+        const percentage = totalMarks > 0 ? (marksObtained / totalMarks) * 100 : 0;
         const percentageClass = percentage >= 80 ? 'high' : percentage >= 50 ? 'medium' : 'low';
         
         const folder = findFolderById(folders, mark.folderId);
@@ -2319,9 +2347,9 @@ function renderMarksTable(folderId = 'all') {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${mark.subject || 'N/A'}</td>
-            <td>${mark.marksObtained || 'N/A'}</td>
-            <td>${mark.totalMarks || 'N/A'}</td>
-            <td><span class="percentage ${percentageClass}">${!isNaN(percentage) ? percentage.toFixed(1) + '%' : 'N/A'}</span></td>
+            <td>${marksObtained}</td>
+            <td>${totalMarks}</td>
+            <td><span class="percentage ${percentageClass}">${percentage.toFixed(1)}%</span></td>
             <td>${mark.date || 'N/A'}</td>
             <td>${folderName}</td>
             <td class="action-buttons">
@@ -2393,28 +2421,81 @@ function renderChart() {
     chartContainer.innerHTML = '<canvas id="progress-chart"></canvas>';
     const ctx = document.getElementById('progress-chart').getContext('2d');
 
-    if (chart) chart.destroy();
+    if (chart) {
+        chart.destroy();
+    }
 
-    const labels = marks.map(m => m.subject);
-    const data = marks.map(m => ((m.marksObtained / m.totalMarks) * 100).toFixed(2));
+    // Don't try to render a chart if there's no data
+    if (marks.length === 0) {
+        chartContainer.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">📊</div>
+                <p>No data available for chart</p>
+                <p style="font-size: 0.9rem;">Add some marks to see your progress</p>
+            </div>
+        `;
+        return;
+    }
 
-    // 🎯 Adjust sizes based on chart type
+    const labels = marks.map(m => m.subject || 'Unknown Subject');
+    const data = marks.map(m => {
+        const obtained = m.marksObtained || 0;
+        const total = m.totalMarks || 1; // Avoid division by zero
+        return ((obtained / total) * 100).toFixed(2);
+    });
+
+    // Generate colors for each subject
+    const backgroundColors = [
+        '#4361ee', '#ef476f', '#06d6a0', '#ffd166', '#7209b7',
+        '#f72585', '#4cc9f0', '#560bad', '#b5179e', '#4895ef'
+    ];
+
+    // Repeat colors if we have more subjects than colors
+    const expandedColors = [];
+    for (let i = 0; i < labels.length; i++) {
+        expandedColors.push(backgroundColors[i % backgroundColors.length]);
+    }
+
+    // Adjust sizes based on chart type
     let options = {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: true } }
+        plugins: {
+            legend: {
+                display: chartType !== 'pie' && chartType !== 'doughnut',
+                position: 'top'
+            },
+            title: {
+                display: true,
+                text: 'Subject Performance'
+            }
+        }
     };
 
-    if (chartType === 'doughnut' || chartType === 'pie') {
-        options.plugins.legend.position = 'bottom'; // nicer for circular charts
-        chartContainer.style.height = '350px';      // ✅ fix too large doughnut
-    } else if (chartType === 'radar') {
-        chartContainer.style.height = '450px';      // ✅ fix too small radar
-    } else {
-        chartContainer.style.height = '400px';      // default for bar/line
+    if (chartType === 'bar' || chartType === 'line') {
         options.scales = {
-            y: { beginAtZero: true, max: 100 }
+            y: {
+                beginAtZero: true,
+                max: 100,
+                title: {
+                    display: true,
+                    text: 'Percentage (%)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Subjects'
+                }
+            }
         };
+        chartContainer.style.height = '400px';
+    } else if (chartType === 'radar') {
+        chartContainer.style.height = '450px';
+    } else {
+        // For pie and doughnut charts
+        chartContainer.style.height = '350px';
+        options.plugins.legend.position = 'bottom';
     }
 
     chart = new Chart(ctx, {
@@ -2422,11 +2503,11 @@ function renderChart() {
         data: {
             labels,
             datasets: [{
-                label: 'Percentage',
+                label: 'Percentage Score',
                 data,
-                backgroundColor: [
-                    '#4361ee', '#ef476f', '#06d6a0', '#ffd166', '#7209b7'
-                ]
+                backgroundColor: expandedColors,
+                borderColor: expandedColors.map(color => color.replace('0.8', '1')),
+                borderWidth: 1
             }]
         },
         options
