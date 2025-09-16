@@ -1710,19 +1710,23 @@ async function createFolder() {
         alert('Please enter a folder name');
         return;
     }
-    
+
     try {
         const response = await dataAPI.createFolder(folderName);
-const newFolder = response.folder;   // ✅ take folder from response
-folders.push(newFolder);
-renderFolders();
-updateFolderSelects();
-document.getElementById('folderName').value = '';
+        const newFolder = response.folder;  // ✅ take only folder object
 
+        // Refresh latest folder list from backend
+        const userData = await dataAPI.getUserData();
+        folders = userData.folders;
+
+        renderFolders();
+        updateFolderSelects();
+        document.getElementById('folderName').value = '';
     } catch (error) {
         alert('Error creating folder: ' + error.message);
     }
 }
+
 
 // Replace the createSubfolder function with this:
 async function createSubfolder() {
@@ -1736,9 +1740,9 @@ async function createSubfolder() {
 
     try {
         const response = await dataAPI.createFolder(subfolderName, parentFolderId);
-        const newSubfolder = response.folder;  // ✅ extract only the folder object
+        const newSubfolder = response.folder;  // ✅ correct extraction
 
-        // Re-fetch all folders from backend (safer than manual push)
+        // Refresh folders from backend so parent-child structure is up to date
         const userData = await dataAPI.getUserData();
         folders = userData.folders;
 
@@ -1746,13 +1750,13 @@ async function createSubfolder() {
         updateFolderSelects();
         hideModal('subfolder-modal');
 
-        // Reset form fields
         document.getElementById('subfolder-name').value = '';
         document.getElementById('parent-folder').value = '';
     } catch (error) {
         alert('Error creating subfolder: ' + error.message);
     }
 }
+
 
 
 
@@ -1771,14 +1775,13 @@ function showCreateSubfolderModal() {
 }
 
 function deleteFolder(folderId) {
-    if (!confirm('Are you sure you want to delete this folder? All marks in this folder will also be deleted.')) {
-        return;
-    }
-    
+    if (!confirm('Are you sure you want to delete this folder?')) return;
+
     dataAPI.deleteFolder(folderId)
-        .then(() => {
-            folders = folders.filter(f => f.id !== folderId);
-            marks = marks.filter(m => m.folderId !== folderId);
+        .then(async () => {
+            const userData = await dataAPI.getUserData(); // ✅ reload from backend
+            folders = userData.folders;
+
             renderFolders();
             updateFolderSelects();
             renderMarksTable();
@@ -1789,6 +1792,7 @@ function deleteFolder(folderId) {
             alert('Error deleting folder: ' + error.message);
         });
 }
+
 
 // Marks functions
 async function addMarks() {
@@ -2237,14 +2241,37 @@ function updateStats() {
 }
 
 function renderChart() {
+    // Reset canvas to avoid ghost layers
+    const chartContainer = document.querySelector('.chart-container');
+    chartContainer.innerHTML = '<canvas id="progress-chart"></canvas>';
     const ctx = document.getElementById('progress-chart').getContext('2d');
+
     if (chart) chart.destroy();
 
     const labels = marks.map(m => m.subject);
     const data = marks.map(m => ((m.marksObtained / m.totalMarks) * 100).toFixed(2));
 
+    // 🎯 Adjust sizes based on chart type
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true } }
+    };
+
+    if (chartType === 'doughnut' || chartType === 'pie') {
+        options.plugins.legend.position = 'bottom'; // nicer for circular charts
+        chartContainer.style.height = '350px';      // ✅ fix too large doughnut
+    } else if (chartType === 'radar') {
+        chartContainer.style.height = '450px';      // ✅ fix too small radar
+    } else {
+        chartContainer.style.height = '400px';      // default for bar/line
+        options.scales = {
+            y: { beginAtZero: true, max: 100 }
+        };
+    }
+
     chart = new Chart(ctx, {
-        type: chartType,  // ✅ dynamic type
+        type: chartType,
         data: {
             labels,
             datasets: [{
@@ -2255,14 +2282,10 @@ function renderChart() {
                 ]
             }]
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: chartType !== 'bar' && chartType !== 'line' }
-            }
-        }
+        options
     });
 }
+
 
 
 function updateFolderSelects() {
