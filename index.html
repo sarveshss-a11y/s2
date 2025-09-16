@@ -1244,10 +1244,7 @@ const dataAPI = {
 
     <div class="modal" id="subfolder-modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Create Subfolder</h3>
-                <button class="modal-close" data-modal="subfolder-modal">&times;</button>
-            </div>
+            
             <div class="modal-body">
                 <div class="form-group">
                     <label for="subfolder-name">Subfolder Name</label>
@@ -1722,7 +1719,54 @@ async function handleLogin() {
         showError('login-error', error.message);
     }
 }
+// Add this function to your JavaScript code, preferably in the "Marks functions" section
+async function addMarks() {
+    const folderId = document.getElementById('current-folder').value;
+    const subject = document.getElementById('subject').value;
+    const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
+    const totalMarks = parseFloat(document.getElementById('total-marks').value);
+    const date = document.getElementById('marks-date').value;
 
+    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks) || !date) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    if (marksObtained > totalMarks) {
+        alert('Marks obtained cannot be greater than total marks');
+        return;
+    }
+
+    try {
+        const newMark = await dataAPI.addMarks(folderId, {
+            subject,
+            marksObtained,
+            totalMarks,
+            date
+        });
+
+        // Add the new mark to our local state
+        marks.push({
+            ...newMark,
+            folderId: folderId
+        });
+
+        // Clear the form
+        document.getElementById('subject').value = '';
+        document.getElementById('marks-obtained').value = '';
+        document.getElementById('total-marks').value = '';
+        document.getElementById('marks-date').value = new Date().toISOString().split('T')[0];
+
+        // Update the UI
+        renderMarksTable();
+        updateStats();
+        renderChart();
+        
+        alert('Marks added successfully!');
+    } catch (error) {
+        alert('Error adding marks: ' + error.message);
+    }
+}
 function handleLogout() {
     localStorage.removeItem('authToken');
     currentUser = null;
