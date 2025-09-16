@@ -21,7 +21,16 @@
             background-color: var(--success);
             color: white;
         }
+.stat-card .stat-value div:first-child {
+    font-size: 2.5rem;
+    font-weight: 700;
+}
 
+.stat-card .stat-value div:last-child {
+    font-size: 1rem;
+    opacity: 0.8;
+    margin-top: 5px;
+}
         .api-status.disconnected {
             background-color: var(--danger);
             color: white;
@@ -2111,16 +2120,29 @@ function renderMarksTable(folderId = 'all') {
 }
 
 function updateStats() {
+    // Calculate total obtained marks and total marks across all subjects
+    let totalObtained = 0;
+    let totalMaximum = 0;
+    
+    marks.forEach(mark => {
+        totalObtained += mark.marksObtained;
+        totalMaximum += mark.totalMarks;
+    });
+    
     // Update overall percentage
-    if (marks.length > 0) {
-        const totalPercentage = marks.reduce((sum, mark) => {
-            return sum + (mark.marksObtained / mark.totalMarks) * 100;
-        }, 0);
-        const overallPercentage = totalPercentage / marks.length;
-        document.getElementById('overall-percentage').textContent = `${overallPercentage.toFixed(1)}%`;
-    } else {
-        document.getElementById('overall-percentage').textContent = '0%';
+    let overallPercentage = 0;
+    if (totalMaximum > 0) {
+        overallPercentage = (totalObtained / totalMaximum) * 100;
     }
+    
+    // Update the overall percentage display with additional information
+    const overallPercentageElement = document.getElementById('overall-percentage');
+    overallPercentageElement.innerHTML = `
+        <div>${overallPercentage.toFixed(1)}%</div>
+        <div style="font-size: 0.8rem; margin-top: 5px;">
+            ${totalObtained} / ${totalMaximum}
+        </div>
+    `;
     
     // Update subject count
     document.getElementById('total-subjects').textContent = marks.length;
