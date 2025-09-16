@@ -1795,6 +1795,13 @@ async function addMarks() {
             date
         });
         
+        // Add folderId to the mark for reference
+        newMark.folderId = folderId;
+        const folder = findFolderById(folders, folderId);
+        if (folder) {
+            newMark.folderName = folder.name;
+        }
+        
         marks.push(newMark);
         renderMarksTable();
         updateStats();
@@ -2099,16 +2106,16 @@ function renderMarksTable(folderId = 'all') {
         const percentage = (mark.marksObtained / mark.totalMarks) * 100;
         const percentageClass = percentage >= 80 ? 'high' : percentage >= 50 ? 'medium' : 'low';
         
-        const folder = folders.find(f => f.id === mark.folderId);
+        const folder = findFolderById(folders, mark.folderId);
         const folderName = folder ? folder.name : 'Unknown';
         
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${mark.subject}</td>
-            <td>${mark.marksObtained}</td>
-            <td>${mark.totalMarks}</td>
-            <td><span class="percentage ${percentageClass}">${percentage.toFixed(1)}%</span></td>
-            <td>${mark.date}</td>
+            <td>${mark.subject || 'N/A'}</td>
+            <td>${mark.marksObtained || 'N/A'}</td>
+            <td>${mark.totalMarks || 'N/A'}</td>
+            <td><span class="percentage ${percentageClass}">${!isNaN(percentage) ? percentage.toFixed(1) + '%' : 'N/A'}</span></td>
+            <td>${mark.date || 'N/A'}</td>
             <td>${folderName}</td>
             <td class="action-buttons">
                 <button class="action-btn edit" onclick="editMarks('${mark.id}')">Edit</button>
@@ -2117,6 +2124,18 @@ function renderMarksTable(folderId = 'all') {
         `;
         tableBody.appendChild(row);
     });
+}
+
+// Add this helper function to find folder by ID
+function findFolderById(foldersArray, folderId) {
+    for (const folder of foldersArray) {
+        if (folder.id === folderId) return folder;
+        if (folder.subfolders) {
+            const found = findFolderById(folder.subfolders, folderId);
+            if (found) return found;
+        }
+    }
+    return null;
 }
 
 function updateStats() {
@@ -2317,9 +2336,29 @@ async function loadUserData() {
     
     try {
         const userData = await dataAPI.getUserData();
-        // Adjust these based on your actual API response structure
-        folders = userData.folders || userData.data?.folders || [];
-        marks = userData.marks || userData.data?.marks || [];
+        
+        // Extract all marks from all folders
+        const extractAllMarks = (foldersArray) => {
+            let allMarks = [];
+            foldersArray.forEach(folder => {
+                if (folder.marks && folder.marks.length > 0) {
+                    folder.marks.forEach(mark => {
+                        allMarks.push({
+                            ...mark,
+                            folderId: folder.id,
+                            folderName: folder.name
+                        });
+                    });
+                }
+                if (folder.subfolders && folder.subfolders.length > 0) {
+                    allMarks = allMarks.concat(extractAllMarks(folder.subfolders));
+                }
+            });
+            return allMarks;
+        };
+        
+        folders = userData.folders || [];
+        marks = extractAllMarks(folders);
         
         document.getElementById('user-name').textContent = currentUser.username;
         document.getElementById('user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
