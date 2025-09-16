@@ -1577,12 +1577,18 @@ const apiStatusElement = document.getElementById('api-status');
 // Check API connection
 async function checkApiConnection() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/health`);
-        if (response.ok) {
+        // Try a simple endpoint that should always work
+        const response = await fetch(`${API_BASE_URL}/api/user`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+        });
+        
+        if (response.status !== 401) { // If not unauthorized, API is connected
             apiStatusElement.textContent = 'API Connected';
             apiStatusElement.className = 'api-status connected';
         } else {
-            throw new Error('API not responding');
+            throw new Error('API not responding properly');
         }
     } catch (error) {
         apiStatusElement.textContent = 'API Disconnected - Using local storage';
@@ -1757,15 +1763,11 @@ async function createFolder() {
     }
 
     try {
-        const response = await dataAPI.createFolder(folderName);
-        const newFolder = response.folder;  // ✅ take only folder object
-
-        // Refresh latest folder list from backend
-        const userData = await dataAPI.getUserData();
-        folders = userData.folders;
-
-        renderFolders();
-        updateFolderSelects();
+        await dataAPI.createFolder(folderName);
+        
+        // Refresh data from server
+        await loadUserData();
+        
         document.getElementById('folderName').value = '';
     } catch (error) {
         alert('Error creating folder: ' + error.message);
@@ -1835,67 +1837,7 @@ function deleteFolder(folderId) {
 
 
 // Marks functions
-async function addMarks() {
-    const folderId = document.getElementById('current-folder').value;
-    const subject = document.getElementById('subject').value;
-    const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
-    const totalMarks = parseFloat(document.getElementById('total-marks').value);
-    const date = document.getElementById('marks-date').value;
-    
-    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks) || !date) {
-        alert('Please fill in all fields with valid values');
-        return;
-    }
-    
-    if (marksObtained > totalMarks) {
-        alert('Marks obtained cannot be greater than total marks');
-        return;
-    }
-    
-    try {
-        const response = await dataAPI.addMarks(folderId, {
-            subject,
-            marksObtained,
-            totalMarks,
-            date
-        });
 
-        // Refresh data from server after adding marks
-        await loadUserData();
-        
-        // Clear form
-        document.getElementById('subject').value = '';
-        document.getElementById('marks-obtained').value = '';
-        document.getElementById('total-marks').value = '';
-        document.getElementById('marks-date').value = new Date().toISOString().split('T')[0];
-    } catch (error) {
-        alert('Error adding marks: ' + error.message);
-    }
-}
-
-const newMark = response.mark; // ✅ take only the mark object
-newMark.folderId = folderId;
-
-const folder = findFolderById(folders, folderId);
-if (folder) {
-    newMark.folderName = folder.name;
-}
-
-marks.push(newMark);
-
-        renderMarksTable();
-        updateStats();
-        renderChart();
-        
-        // Clear form
-        document.getElementById('subject').value = '';
-        document.getElementById('marks-obtained').value = '';
-        document.getElementById('total-marks').value = '';
-        document.getElementById('marks-date').value = new Date().toISOString().split('T')[0];
-    } catch (error) {
-        alert('Error adding marks: ' + error.message);
-    }
-}
 
 function editMarks(markId) {
     const mark = marks.find(m => m.id === markId);
