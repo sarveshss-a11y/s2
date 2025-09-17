@@ -2536,19 +2536,40 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 
 // Toggle password visibility - MOVE THIS TO THE BOTTOM OF THE FILE
 // Setup password toggles
+// Setup password toggles - Alternative solution
 function setupPasswordToggles() {
-    document.querySelectorAll('.toggle-password').forEach(button => {
-        button?.addEventListener('click', function() {
-            const input = this.parentElement.querySelector('input');
-            if (input?.type === 'password') {
-                input.type = 'text';
-                this.textContent = '🔒';
-            } else if (input) {
-                input.type = 'password';
-                this.textContent = '👁️';
+    // Try multiple times to find the elements (in case they're not loaded yet)
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const trySetup = () => {
+        const toggleButtons = document.querySelectorAll('.toggle-password');
+        
+        if (toggleButtons.length > 0 || attempts >= maxAttempts) {
+            if (toggleButtons.length > 0) {
+                toggleButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const input = this.parentElement.querySelector('input');
+                        if (input) {
+                            if (input.type === 'password') {
+                                input.type = 'text';
+                                this.textContent = '🔒';
+                            } else {
+                                input.type = 'password';
+                                this.textContent = '👁️';
+                            }
+                        }
+                    });
+                });
             }
-        });
-    });
+            return;
+        }
+        
+        attempts++;
+        setTimeout(trySetup, 100);
+    };
+    
+    trySetup();
 }
 // Add this function call at the end of your initApp function
 
