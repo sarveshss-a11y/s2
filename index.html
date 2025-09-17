@@ -2299,7 +2299,7 @@ function renderFolderRecursive(folder, container) {
 }
 
 // Marks functions
-// Update the addMarks function
+// Replace the addMarks function with this corrected version
 async function addMarks() {
     const folderId = document.getElementById('marks-folder').value;
     const subject = document.getElementById('subject').value.trim();
@@ -2323,6 +2323,7 @@ async function addMarks() {
     }
 
     try {
+        // Call the API to save marks to the database
         const newMark = await dataAPI.addMarks(folderId, {
             subject,
             marksObtained,
@@ -2330,13 +2331,13 @@ async function addMarks() {
             date
         });
 
-        // Reload all data from server to ensure consistency
-        await loadUserData();
-        
         // Clear form
         document.getElementById('subject').value = '';
         document.getElementById('marks-obtained').value = '';
         document.getElementById('total-marks').value = '';
+        
+        // Reload data from server to get the updated marks
+        await loadUserData();
         
         alert('Marks added successfully!');
     } catch (error) {
@@ -2344,37 +2345,6 @@ async function addMarks() {
         alert('Error adding marks: ' + error.message);
     }
 }
-// Add this debug function
-function debugDataStructure() {
-    console.log('=== DEBUG DATA STRUCTURE ===');
-    console.log('Folders count:', folders.length);
-    
-    let totalMarksInFolders = 0;
-    let folderDetails = [];
-    
-    function countMarks(folderArray, level = 0) {
-        folderArray.forEach(folder => {
-            const indent = '  '.repeat(level);
-            const markCount = folder.marks ? folder.marks.length : 0;
-            totalMarksInFolders += markCount;
-            
-            folderDetails.push(`${indent}📁 ${folder.name}: ${markCount} marks`);
-            
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                countMarks(folder.subfolders, level + 1);
-            }
-        });
-    }
-    
-    countMarks(folders);
-    folderDetails.forEach(line => console.log(line));
-    console.log('Total marks in folders:', totalMarksInFolders);
-    console.log('Marks array length:', marks.length);
-    console.log('Marks array:', marks);
-}
-
-// Call this from browser console: debugDataStructure()
-window.debugDataStructure = debugDataStructure;
 
 // Replace the openAddMarksModal function
 
@@ -2877,41 +2847,37 @@ function clearUI() {
 // Replace the loadUserData function with this:
 // Data loading
 // Replace the loadUserData function with this:
-// Replace the loadUserData function with this:
 async function loadUserData() {
     try {
         const data = await dataAPI.getUserData();
         currentUser = { username: data.username };
         folders = data.folders || [];
         
-        // Extract all marks from folders and subfolders - FIXED VERSION
+        // Extract all marks from folders and subfolders
         marks = [];
-        
-        function extractMarksFromFolders(folderArray) {
+        function extractMarks(folderArray) {
             folderArray.forEach(folder => {
-                // Extract marks from current folder
-                if (folder.marks && Array.isArray(folder.marks)) {
+                if (folder.marks && folder.marks.length > 0) {
                     folder.marks.forEach(mark => {
+                        // Ensure all required fields exist
                         marks.push({
-                            id: mark.id || Date.now().toString(),
+                            id: mark.id || 'unknown-id',
                             subject: mark.subject || 'Unknown Subject',
                             marksObtained: mark.marksObtained || 0,
                             totalMarks: mark.totalMarks || 0,
-                            date: mark.date || new Date().toISOString().split('T')[0],
+                            date: mark.date || 'Unknown Date',
                             folderId: folder.id,
                             folderName: folder.name || 'Unknown Folder'
                         });
                     });
                 }
                 
-                // Recursively extract from subfolders
-                if (folder.subfolders && Array.isArray(folder.subfolders)) {
-                    extractMarksFromFolders(folder.subfolders);
+                if (folder.subfolders && folder.subfolders.length > 0) {
+                    extractMarks(folder.subfolders);
                 }
             });
         }
-        
-        extractMarksFromFolders(folders);
+        extractMarks(folders);
 
         // Update UI with username/avatar
         document.getElementById('user-name').textContent = currentUser.username || "User";
