@@ -2526,39 +2526,33 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 // Toggle password visibility - MOVE THIS TO THE BOTTOM OF THE FILE
 // Setup password toggles
 // Setup password toggles - Alternative solution
+// Replace the setupPasswordToggles function with this:
 function setupPasswordToggles() {
-    // Try multiple times to find the elements (in case they're not loaded yet)
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    const trySetup = () => {
+    // Wait for the DOM to be fully loaded
+    setTimeout(() => {
         const toggleButtons = document.querySelectorAll('.toggle-password');
         
-        if (toggleButtons.length > 0 || attempts >= maxAttempts) {
-            if (toggleButtons.length > 0) {
-                toggleButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const input = this.parentElement.querySelector('input');
-                        if (input) {
-                            if (input.type === 'password') {
-                                input.type = 'text';
-                                this.textContent = '🔒';
-                            } else {
-                                input.type = 'password';
-                                this.textContent = '👁️';
-                            }
-                        }
-                    });
-                });
-            }
-            return;
-        }
-        
-        attempts++;
-        setTimeout(trySetup, 100);
-    };
-    
-    trySetup();
+        toggleButtons.forEach(button => {
+            // Remove any existing event listeners first
+            button.replaceWith(button.cloneNode(true));
+            
+            // Get the new reference
+            const newButton = document.querySelector(`[data-id="${button.dataset.id}"]`) || button;
+            
+            newButton.addEventListener('click', function() {
+                const input = this.parentElement.querySelector('input');
+                if (input) {
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        this.textContent = '🔒';
+                    } else {
+                        input.type = 'password';
+                        this.textContent = '👁️';
+                    }
+                }
+            });
+        });
+    }, 100);
 }
 // Add this function call at the end of your initApp function
 
@@ -2859,28 +2853,29 @@ async function loadUserData() {
         
         // Extract all marks from folders and subfolders
         marks = [];
-        function extractMarks(folderArray) {
-            folderArray.forEach(folder => {
-                if (folder.marks && folder.marks.length > 0) {
-                    folder.marks.forEach(mark => {
-                        // Ensure all required fields exist
-                        marks.push({
-                            id: mark.id || 'unknown-id',
-                            subject: mark.subject || 'Unknown Subject',
-                            marksObtained: mark.marksObtained || 0,
-                            totalMarks: mark.totalMarks || 0,
-                            date: mark.date || 'Unknown Date',
-                            folderId: folder.id,
-                            folderName: folder.name || 'Unknown Folder'
-                        });
-                    });
-                }
-                
-                if (folder.subfolders && folder.subfolders.length > 0) {
-                    extractMarks(folder.subfolders);
-                }
+        // Replace the extractMarks function inside loadUserData with this:
+function extractMarks(folderArray) {
+    folderArray.forEach(folder => {
+        if (folder.marks && folder.marks.length > 0) {
+            folder.marks.forEach(mark => {
+                // Ensure all required fields exist
+                marks.push({
+                    id: mark.id || Date.now().toString(),
+                    subject: mark.subject || 'Unknown Subject',
+                    marksObtained: mark.marksObtained || 0,
+                    totalMarks: mark.totalMarks || 0,
+                    date: mark.date || new Date().toISOString().split('T')[0],
+                    folderId: folder.id,
+                    folderName: folder.name || 'Unknown Folder'
+                });
             });
         }
+        
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            extractMarks(folder.subfolders);
+        }
+    });
+}
         extractMarks(folders);
 
         // Update UI with username/avatar
@@ -2974,17 +2969,21 @@ function debugMarks() {
     console.log(`Total marks in extracted array: ${marks.length}`);
 }
 
+// Add this function to help debug
 function debugData() {
     console.log('=== DEBUG DATA ===');
     console.log('Current user:', currentUser);
     console.log('Folders:', folders);
     console.log('Marks:', marks);
     
-    // Check API response structure
-    dataAPI.getUserData()
-        .then(data => console.log('API Response:', data))
-        .catch(error => console.error('API Error:', error));
+    // Check if we can access the API
+    apiRequest('/api/health')
+        .then(data => console.log('API Health:', data))
+        .catch(error => console.error('API Health Check Failed:', error));
 }
+
+// Make it available globally for debugging
+window.debugData = debugData;
 
 // You can call this from the browser console to debug
 window.debugData = debugData;
