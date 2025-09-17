@@ -1749,6 +1749,33 @@ document.querySelectorAll('.toggle-password').forEach(button => {
     });
 });
 }
+// ✅ Add this function below handleSignup()
+async function handleLogin() {
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    if (!username || !password) {
+        showError('login-error', 'Please fill in all fields');
+        return;
+    }
+
+    try {
+        const result = await authAPI.login(username, password);
+
+        // Save token and user info
+        localStorage.setItem('authToken', result.token);
+        currentUser = result.user;
+
+        // Switch to main app
+        showPage('app-page');
+
+        // Load user data (folders, marks)
+        await loadUserData();
+    } catch (error) {
+        console.error('Login failed:', error);
+        showError('login-error', error.message || 'Login failed');
+    }
+}
 
 
 
