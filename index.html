@@ -1673,7 +1673,7 @@ const dataAPI = {
             </div>
         </div>
 
-        <script>
+        <script>    
     let chartType = localStorage.getItem('chartType') || 'bar';
 
 // State management
@@ -1736,7 +1736,12 @@ if (document.readyState === 'loading') {
 // Start the app
 initApp();
 
-
+document.addEventListener('DOMContentLoaded', () => {
+  const addMarksBtn = document.getElementById('add-marks-btn');
+  if (addMarksBtn) {
+    addMarksBtn.addEventListener('click', addMarks);
+  }
+});
 
 // Event Listeners
 function setupEventListeners() {
@@ -2331,7 +2336,7 @@ async function addMarks() {
 
 
 // Add this event listener to your setupEventListeners function
-document.getElementById('save-marks-btn').addEventListener('click', addMarks);
+document.getElementById('add-marks-btn').addEventListener('click', addMarks);
 
 
 
