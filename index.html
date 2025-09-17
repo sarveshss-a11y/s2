@@ -1083,6 +1083,9 @@ async function apiRequest(endpoint, options = {}) {
     // Add authorization header if token exists
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('Adding Authorization header with token');
+    } else {
+        console.warn('No token found for API request to:', endpoint);
     }
 
     if (config.body && typeof config.body === 'object') {
@@ -1090,9 +1093,16 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     try {
+        console.log('Making API request to:', url);
         const response = await fetch(url, config);
         
-        // Check if response is JSON
+        // Check if response is unauthorized
+        if (response.status === 401) {
+            localStorage.removeItem('authToken');
+            showPage('login-page');
+            throw new Error('Session expired. Please login again.');
+        }
+        
         const contentType = response.headers.get('content-type');
         let data;
         
@@ -1103,23 +1113,12 @@ async function apiRequest(endpoint, options = {}) {
         }
 
         if (!response.ok) {
-            // If we got a 401, the token might be invalid
-            if (response.status === 401) {
-                localStorage.removeItem('authToken');
-                showPage('login-page');
-            }
             throw new Error(data.message || `Server error: ${response.status}`);
         }
 
         return data;
     } catch (error) {
         console.error('API request failed:', error);
-        // If it's a network error, try to use local storage
-        if (error.message.includes('Failed to fetch')) {
-            apiStatusElement.textContent = 'API Disconnected - Using local storage';
-            apiStatusElement.className = 'api-status disconnected';
-            // You might want to implement local storage fallback here
-        }
         throw error;
     }
 }
@@ -1159,7 +1158,25 @@ loginWithToken: async () => {
             method: 'DELETE',
         }),
 };
-
+async function refreshToken() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/refresh-token`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('authToken', data.token);
+            return true;
+        }
+    } catch (error) {
+        console.error('Token refresh failed:', error);
+    }
+    return false;
+}
 // Data API functions
 const dataAPI = {
     getUserData: async () => await apiRequest('/api/user'),
@@ -1762,23 +1779,28 @@ async function handleSignup() {
     }
 }
 
-async function handleLogin() {
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
+async function createFolder() {
+    const folderNameInput = document.getElementById('folderName');
+    const name = folderNameInput.value.trim();
     
-    if (!username || !password) {
-        showError('login-error', 'Please fill in all fields');
+    if (!name) {
+        alert('Please enter a folder name');
         return;
     }
     
     try {
-        const result = await authAPI.login(username, password);
-        localStorage.setItem('authToken', result.token);
-        currentUser = result.user;
-        showPage('app-page');
-        loadUserData();
+        const result = await dataAPI.createFolder(name);
+        
+        // Clear the input field
+        folderNameInput.value = '';
+        
+        // Refresh folders from server
+        await loadUserData();
+        
+        alert('Folder created successfully!');
     } catch (error) {
-        showError('login-error', error.message);
+        console.error('Error creating folder:', error);
+        alert('Error creating folder: ' + error.message);
     }
 }
 // Add this function to your JavaScript code, preferably in the "Marks functions" section
@@ -1874,44 +1896,42 @@ function checkAuthStatus() {
 
 // Folder functions
 // Replace the createFolder function with this:
-async function createFolder(name, parentId = null) {
+async function createFolder() {
+    const folderNameInput = document.getElementById('folderName');
+    const name = folderNameInput.value.trim();
+    
+    if (!name) {
+        alert('Please enter a folder name');
+        return;
+    }
+    
     try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            alert("You must be logged in to create folders");
-            return;
-        }
-
-        const res = await fetch(`${API_BASE}/api/folders`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ name, parentId })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            console.error("Create folder error:", data);
-            alert("Failed to create folder: " + (data.message || "Unknown error"));
-            return;
-        }
-
-        // ✅ Update local userData
-        if (!window.userData) window.userData = { folders: [] };
-        window.userData.folders.push(data.folder);
-
-        renderFolders(window.userData.folders);
-
-    } catch (err) {
-        console.error("Error creating folder:", err);
-        alert("Network error while creating folder");
+        const result = await dataAPI.createFolder(name);
+        
+        // Clear the input field
+        folderNameInput.value = '';
+        
+        // Refresh folders from server
+        await loadUserData();
+        
+        alert('Folder created successfully!');
+    } catch (error) {
+        console.error('Error creating folder:', error);
+        alert('Error creating folder: ' + error.message);
     }
 }
 
+function checkToken() {
+    const token = localStorage.getItem('authToken');
+    console.log('Token exists:', !!token);
+    if (token) {
+        console.log('Token length:', token.length);
+        console.log('Token content (first 50 chars):', token.substring(0, 50));
+    }
+}
 
+// Call this after login to verify token is stored
+checkToken();
 
 
 // Replace the createSubfolder function with this:
