@@ -1553,6 +1553,30 @@ const dataAPI = {
             </select>
         </div>
     </div>
+    <div class="settings-section">
+    <h3 class="settings-title"><i>📁</i> Data Management</h3>
+    
+    <div class="settings-option">
+        <div class="option-label">
+            <h4>Export Data</h4>
+            <p>Download all your data as a JSON file</p>
+        </div>
+        <div class="option-control">
+            <button class="btn btn-info" id="export-data-btn">Export Data</button>
+        </div>
+    </div>
+    
+    <div class="settings-option">
+        <div class="option-label">
+            <h4>Import Data</h4>
+            <p>Upload data from a JSON file</p>
+        </div>
+        <div class="option-control">
+            <input type="file" id="import-file" accept=".json" style="display: none;">
+            <button class="btn btn-info" id="import-data-btn">Import Data</button>
+        </div>
+    </div>
+</div>
             <div class="danger-zone">
                 <h3 class="settings-title"><i>⚠️</i> Danger Zone</h3>
                 
@@ -2103,7 +2127,8 @@ function renderFolders() {
         toggle.style.cursor = hasSubfolders ? 'pointer' : 'default';
         
         if (hasSubfolders) {
-            toggle.onclick = () => {
+            toggle.onclick = (e) => {
+                e.stopPropagation();
                 folder.collapsed = !folder.collapsed;
                 renderFolders();
             };
@@ -2150,33 +2175,38 @@ function renderFolders() {
         contentDiv.appendChild(toggle);
         contentDiv.appendChild(folderIcon);
         contentDiv.appendChild(nameSpan);
-        contentDiv.appendChild(percentageSpan);
+        contentSpan.appendChild(percentageSpan);
         contentDiv.appendChild(actions);
         
         folderDiv.appendChild(contentDiv);
 
         // Add subfolders if not collapsed
         if (hasSubfolders && !folder.collapsed) {
+            const subfolderContainer = document.createElement('div');
+            subfolderContainer.className = 'subfolder-container';
+            
             folder.subfolders.forEach(subfolder => {
-                folderDiv.appendChild(renderFolderRecursive(subfolder, level + 1));
+                subfolderContainer.appendChild(renderFolderRecursive(subfolder, level + 1));
             });
+            
+            folderDiv.appendChild(subfolderContainer);
         }
 
         // Click to select folder
-       contentDiv.addEventListener('click', (e) => {
-    if (e.target !== toggle && e.target !== deleteBtn) {
-        document.querySelectorAll('.folder-tree-content').forEach(el => {
-            el.style.backgroundColor = '';
+        contentDiv.addEventListener('click', (e) => {
+            if (e.target !== toggle && e.target !== deleteBtn) {
+                document.querySelectorAll('.folder-tree-content').forEach(el => {
+                    el.style.backgroundColor = '';
+                });
+                contentDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                selectedFolderId = folder.id;
+                document.getElementById('current-folder').value = folder.id;
+                
+                // Also update the folder filter to show only this folder's marks
+                document.getElementById('folder-select').value = folder.id;
+                filterMarksByFolder();
+            }
         });
-        contentDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-        selectedFolderId = folder.id;
-        document.getElementById('current-folder').value = folder.id;
-        
-        // Also update the folder filter to show only this folder's marks
-        document.getElementById('folder-select').value = folder.id;
-        filterMarksByFolder();
-    }
-});
 
         return folderDiv;
     }
@@ -2270,7 +2300,75 @@ function createFolderTreeNode(folder) {
         
         node.appendChild(childrenContainer);
     }
+    // Export data
+async function exportData() {
+    try {
+        const response = await apiRequest('/api/export-data');
+        
+        // Create a download link
+        const dataStr = JSON.stringify(response, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = 'marks-explorer-data.json';
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+        
+        alert('Data exported successfully!');
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        alert('Failed to export data: ' + error.message);
+    }
+}
+
+// Import data
+async function importData(file) {
+    if (!file) return;
     
+    try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                if (!data.folders) {
+                    throw new Error('Invalid file format');
+                }
+                
+                await apiRequest('/api/import-data', {
+                    method: 'POST',
+                    body: { folders: data.folders }
+                });
+                
+                // Reload the data
+                await loadUserData();
+                alert('Data imported successfully!');
+            } catch (error) {
+                console.error('Error parsing import file:', error);
+                alert('Failed to import data: Invalid file format');
+            }
+        };
+        reader.readAsText(file);
+    } catch (error) {
+        console.error('Error importing data:', error);
+        alert('Failed to import data: ' + error.message);
+    }
+}
+
+// Add event listeners for import/export
+document.getElementById('export-data-btn').addEventListener('click', exportData);
+document.getElementById('import-data-btn').addEventListener('click', () => {
+    document.getElementById('import-file').click();
+});
+document.getElementById('import-file').addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        if (confirm('Importing data will replace all your current data. Continue?')) {
+            importData(e.target.files[0]);
+        }
+    }
+});
     // Select folder on click
     content.addEventListener('click', () => {
         document.querySelectorAll('.folder-tree-content').forEach(el => {
@@ -2285,10 +2383,11 @@ function createFolderTreeNode(folder) {
 }
 
 // Toggle password visibility - MOVE THIS TO THE BOTTOM OF THE FILE
+// Setup password toggles
 function setupPasswordToggles() {
     document.querySelectorAll('.toggle-password').forEach(button => {
         button.addEventListener('click', function() {
-            const input = this.previousElementSibling;
+            const input = this.parentElement.querySelector('input');
             if (input.type === 'password') {
                 input.type = 'text';
                 this.textContent = '🔒';
@@ -2316,7 +2415,6 @@ function initApp() {
     // ✅ Setup password toggles after pages are loaded
     setTimeout(setupPasswordToggles, 100);
 }
-
 function renderMarksTable(folderId = 'all') {
     const tableBody = document.getElementById('marks-table-body');
     const emptyState = document.getElementById('empty-marks');
