@@ -1709,19 +1709,23 @@ function setupEventListeners() {
 
     
     // Toggle password visibility
-    document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', function() {
-            const input = this.previousElementSibling;
-            if (input.type === 'password') {
-                input.type = 'text';
-                this.textContent = '🔒';
-            } else {
-                input.type = 'password';
-                this.textContent = '👁️';
-            }
-        });
+   // Toggle password visibility
+// ✅ Fixed Password Toggle
+document.querySelectorAll('.toggle-password').forEach(button => {
+    button.addEventListener('click', function() {
+        const container = this.closest('.password-container');
+        const input = container.querySelector('input');
+        if (input.type === 'password') {
+            input.type = 'text';
+            this.textContent = '🔒';
+        } else {
+            input.type = 'password';
+            this.textContent = '👁️';
+        }
     });
-}
+});
+
+
 
 // Authentication functions
 async function handleSignup() {
@@ -2111,111 +2115,74 @@ function renderFolders() {
     }
 
     // Function to render folders recursively
-    function renderFolderRecursive(folder, level = 0) {
-        const folderDiv = document.createElement('div');
-        folderDiv.className = 'folder-tree-item';
-        
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'folder-tree-content';
-        contentDiv.style.paddingLeft = (level * 20) + 'px';
-        
-        // Toggle arrow for folders with subfolders
-        const hasSubfolders = folder.subfolders && folder.subfolders.length > 0;
-        const toggle = document.createElement('span');
-        toggle.className = 'toggle-arrow';
-        toggle.textContent = hasSubfolders ? (folder.collapsed ? '▶' : '▼') : '•';
-        toggle.style.cursor = hasSubfolders ? 'pointer' : 'default';
-        
-        if (hasSubfolders) {
-            toggle.onclick = (e) => {
-                e.stopPropagation();
-                folder.collapsed = !folder.collapsed;
-                renderFolders();
-            };
-        }
+    function renderFolderRecursive(folder, container) {
+    const folderItem = document.createElement("div");
+    folderItem.classList.add("folder-tree-item");
 
-        // Folder icon and name
-        const folderIcon = document.createElement('span');
-        folderIcon.className = 'folder-icon';
-        folderIcon.textContent = '📁';
-        folderIcon.style.marginRight = '8px';
+    // Folder row
+    const folderContent = document.createElement("div");
+    folderContent.classList.add("folder-tree-content");
 
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'folder-name';
-        nameSpan.textContent = folder.name;
-        nameSpan.style.flex = '1';
+    // Arrow for expanding/collapsing
+    const toggleArrow = document.createElement("span");
+    toggleArrow.classList.add("toggle-arrow");
+    toggleArrow.textContent = folder.collapsed ? "▶" : "▼";
 
-        // Folder percentage
-        const folderMarks = marks.filter(m => m.folderId === folder.id);
-        let percentage = 0;
-        if (folderMarks.length > 0) {
-            const total = folderMarks.reduce((sum, mark) => sum + (mark.marksObtained / mark.totalMarks), 0);
-            percentage = (total / folderMarks.length) * 100;
-        }
-        
-        const percentageSpan = document.createElement('span');
-        percentageSpan.className = 'folder-percentage';
-        percentageSpan.textContent = folderMarks.length > 0 ? `${percentage.toFixed(1)}%` : 'Empty';
-        percentageSpan.style.marginLeft = '10px';
+    // ✅ Fixed: Define contentSpan properly
+    const contentSpan = document.createElement("span");
+    contentSpan.classList.add("folder-name");
+    contentSpan.textContent = folder.name;
 
-        // Actions
-        const actions = document.createElement('div');
-        actions.className = 'folder-actions';
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '🗑️';
-        deleteBtn.title = 'Delete folder';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteFolder(folder.id);
-        };
-        actions.appendChild(deleteBtn);
+    // Actions
+    const actions = document.createElement("div");
+    actions.classList.add("folder-tree-actions");
 
-        // Assemble content
-        contentDiv.appendChild(toggle);
-        contentDiv.appendChild(folderIcon);
-        contentDiv.appendChild(nameSpan);
-        contentSpan.appendChild(percentageSpan);
-        contentDiv.appendChild(actions);
-        
-        folderDiv.appendChild(contentDiv);
+    const addSubBtn = document.createElement("button");
+    addSubBtn.textContent = "+";
+    addSubBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        showPopup(folder.id); // your subfolder creation logic
+    });
 
-        // Add subfolders if not collapsed
-        if (hasSubfolders && !folder.collapsed) {
-            const subfolderContainer = document.createElement('div');
-            subfolderContainer.className = 'subfolder-container';
-            
-            folder.subfolders.forEach(subfolder => {
-                subfolderContainer.appendChild(renderFolderRecursive(subfolder, level + 1));
-            });
-            
-            folderDiv.appendChild(subfolderContainer);
-        }
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑️";
+    deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteFolder(folder.id);
+    });
 
-        // Click to select folder
-        contentDiv.addEventListener('click', (e) => {
-            if (e.target !== toggle && e.target !== deleteBtn) {
-                document.querySelectorAll('.folder-tree-content').forEach(el => {
-                    el.style.backgroundColor = '';
-                });
-                contentDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                selectedFolderId = folder.id;
-                document.getElementById('current-folder').value = folder.id;
-                
-                // Also update the folder filter to show only this folder's marks
-                document.getElementById('folder-select').value = folder.id;
-                filterMarksByFolder();
-            }
+    actions.appendChild(addSubBtn);
+    actions.appendChild(deleteBtn);
+
+    folderContent.appendChild(toggleArrow);
+    folderContent.appendChild(contentSpan);
+    folderContent.appendChild(actions);
+
+    folderItem.appendChild(folderContent);
+
+    // Children
+    if (folder.subfolders && folder.subfolders.length > 0) {
+        const childrenContainer = document.createElement("div");
+        childrenContainer.classList.add("folder-tree-children");
+        if (folder.collapsed) childrenContainer.style.display = "none";
+
+        folder.subfolders.forEach(sub => {
+            renderFolderRecursive(sub, childrenContainer);
         });
 
-        return folderDiv;
+        folderItem.appendChild(childrenContainer);
+
+        toggleArrow.addEventListener("click", (e) => {
+            e.stopPropagation();
+            folder.collapsed = !folder.collapsed;
+            childrenContainer.style.display = folder.collapsed ? "none" : "block";
+            toggleArrow.textContent = folder.collapsed ? "▶" : "▼";
+        });
     }
 
-    // Render all top-level folders
-    folders.forEach(folder => {
-        folderList.appendChild(renderFolderRecursive(folder));
-    });
+    container.appendChild(folderItem);
 }
+
 
 
 
