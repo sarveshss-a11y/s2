@@ -2325,11 +2325,19 @@ async function addMarks() {
 
     try {
         // Your API call to save marks
-        await dataAPI.addMarks(folderId, {
+        const newMark = await dataAPI.addMarks(folderId, {
             subject,
             marksObtained,
             totalMarks,
             date
+        });
+
+        // Add the new mark to our local state with the folder name
+        const folder = findFolderById(folders, folderId);
+        marks.push({
+            ...newMark,
+            folderId: folderId,
+            folderName: folder ? folder.name : 'Unknown'
         });
 
         // Clear form
@@ -2337,8 +2345,11 @@ async function addMarks() {
         document.getElementById('marks-obtained').value = '';
         document.getElementById('total-marks').value = '';
         
-        // Refresh data
-        await loadUserData();
+        // Update UI
+        renderMarksTable(document.getElementById('folder-select').value);
+        updateStats();
+        renderChart();
+        
         alert('Marks added successfully!');
     } catch (error) {
         console.error('Error adding marks:', error);
