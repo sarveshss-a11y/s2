@@ -2182,7 +2182,7 @@ async function deleteAccount() {
 }
 
 function renderFolders(folderArray, parentElement = document.getElementById('folder-list')) {
-    parentElement.innerHTML = ""; // Clear existing
+    parentElement.innerHTML = ""; // clear sidebar
 
     if (!folderArray || folderArray.length === 0) {
         parentElement.innerHTML = `<div class="no-folders-message">No folders yet</div>`;
@@ -2190,8 +2190,10 @@ function renderFolders(folderArray, parentElement = document.getElementById('fol
     }
 
     folderArray.forEach(folder => {
+        // Create folder item
         const folderDiv = document.createElement("div");
-        folderDiv.classList.add("folder-item");
+        folderDiv.className = "folder-item";
+
         folderDiv.innerHTML = `
             <span class="folder-icon">📁</span>
             <span class="folder-name">${folder.name}</span>
@@ -2199,15 +2201,16 @@ function renderFolders(folderArray, parentElement = document.getElementById('fol
 
         parentElement.appendChild(folderDiv);
 
-        // If subfolders exist, render them
+        // If subfolders exist, render them nested
         if (folder.subfolders && folder.subfolders.length > 0) {
-            const subContainer = document.createElement("div");
-            subContainer.classList.add("subfolder-container");
-            renderFolders(folder.subfolders, subContainer);
-            parentElement.appendChild(subContainer);
+            const subDiv = document.createElement("div");
+            subDiv.className = "subfolder-container";
+            renderFolders(folder.subfolders, subDiv);
+            parentElement.appendChild(subDiv);
         }
     });
 }
+
 
 // helper for recursion
 function renderFoldersInto(folders, container) {
@@ -2806,18 +2809,19 @@ async function loadUserData() {
         currentUser = { username: data.username };
         folders = data.folders || [];
 
-        // Update UI with username
+        // Update UI with username/avatar
         document.getElementById('user-name').textContent = currentUser.username || "User";
         document.getElementById('user-avatar').textContent = (currentUser.username || "U")[0].toUpperCase();
 
-        // Render folders into sidebar
+        // ✅ Render folders into sidebar
         renderFolders(folders);
     } catch (error) {
-        console.error('Failed to load user data:', error);
+        console.error("Failed to load user data:", error);
         folders = [];
-        renderFolders([]); // Clear UI if failed
+        renderFolders([]); // only clear if API totally fails
     }
 }
+
 
 
 // Initialize the app when the DOM is loaded
