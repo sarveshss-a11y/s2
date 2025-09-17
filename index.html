@@ -1942,31 +1942,22 @@ async function createSubfolder() {
     const parentId = document.getElementById('parent-folder').value;
     const name = document.getElementById('subfolder-name').value.trim();
 
-    if (!parentId) {
-        alert("Please select a parent folder");
-        return;
-    }
-    if (!name) {
-        alert("Please enter a subfolder name");
+    if (!parentId || !name) {
+        alert("Please select a parent folder and enter a name");
         return;
     }
 
     try {
-        await dataAPI.createFolder(name, parentId);
-
-        // Clear modal fields
-        document.getElementById('subfolder-name').value = "";
+        await dataAPI.createFolder(name, parentId); // <-- parentId is passed
         hideModal('subfolder-modal');
-
-        // Refresh user data (to show new subfolder)
-        await loadUserData();
-
-        alert("Subfolder created successfully!");
+        await loadUserData(); // refresh sidebar
+        alert("Subfolder created!");
     } catch (error) {
         console.error("Error creating subfolder:", error);
-        alert("Failed to create subfolder: " + error.message);
+        alert("Error: " + error.message);
     }
 }
+
 
 
 
