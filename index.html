@@ -2306,60 +2306,37 @@ async function addMarks() {
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
     const date = document.getElementById('marks-date').value;
 
-    if (!folderId) {
-        alert('Please select a folder first');
-        return;
-    }
-
-    if (!subject || isNaN(marksObtained) || isNaN(totalMarks) || !date) {
-        alert('Please fill in all fields');
-        return;
-    }
-
-    if (marksObtained > totalMarks) {
-        alert('Marks obtained cannot be greater than total marks');
+    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
+        alert("Please fill in all fields correctly");
         return;
     }
 
     try {
-        // Your API call to save marks
-        const newMark = await dataAPI.addMarks(folderId, {
-            subject,
-            marksObtained,
-            totalMarks,
-            date
+        const token = localStorage.getItem("token"); // 🔑 must send auth token
+        const res = await fetch(`${API_BASE}/folders/${folderId}/marks`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                subject,
+                marksObtained,
+                totalMarks,
+                date
+            })
         });
 
-        // Find the folder to get its name
-        const folder = findFolderById(folders, folderId);
-        
-        // Add the new mark to our local state with proper data
-        marks.push({
-            id: newMark.id || Date.now().toString(), // Ensure we have an ID
-            subject: subject,
-            marksObtained: marksObtained,
-            totalMarks: totalMarks,
-            date: date,
-            folderId: folderId,
-            folderName: folder ? folder.name : 'Unknown'
-        });
+        if (!res.ok) throw new Error("Failed to save marks");
 
-        // Clear form
-        document.getElementById('subject').value = '';
-        document.getElementById('marks-obtained').value = '';
-        document.getElementById('total-marks').value = '';
-        
-        // Update UI
-        renderMarksTable(document.getElementById('folder-select').value);
-        updateStats();
-        renderChart();
-        
-        alert('Marks added successfully!');
+        await loadUserData(); // reloads from DB so UI matches DB
+        alert("Mark added successfully!");
     } catch (error) {
-        console.error('Error adding marks:', error);
-        alert('Error adding marks: ' + error.message);
+        console.error("Error adding mark:", error);
+        alert("Error adding mark: " + error.message);
     }
 }
+
 
 // Replace the openAddMarksModal function
 
