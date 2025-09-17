@@ -1877,6 +1877,11 @@ function checkAuthStatus() {
 async function createFolder(name, parentId = null) {
     try {
         const token = localStorage.getItem("token");
+        if (!token) {
+            alert("You must be logged in to create folders");
+            return;
+        }
+
         const res = await fetch(`${API_BASE}/api/folders`, {
             method: "POST",
             headers: {
@@ -1886,19 +1891,26 @@ async function createFolder(name, parentId = null) {
             body: JSON.stringify({ name, parentId })
         });
 
-        if (!res.ok) throw new Error("Failed to create folder");
         const data = await res.json();
 
-        // ✅ update UI immediately
+        if (!res.ok) {
+            console.error("Create folder error:", data);
+            alert("Failed to create folder: " + (data.message || "Unknown error"));
+            return;
+        }
+
+        // ✅ Update local userData
         if (!window.userData) window.userData = { folders: [] };
         window.userData.folders.push(data.folder);
 
         renderFolders(window.userData.folders);
+
     } catch (err) {
         console.error("Error creating folder:", err);
-        alert("Failed to create folder");
+        alert("Network error while creating folder");
     }
 }
+
 
 
 
