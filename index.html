@@ -1779,6 +1779,7 @@ async function handleSignup() {
     }
 }
 
+// ✅ Fixed createFolder function
 async function createFolder() {
     const folderNameInput = document.getElementById('folderName');
     const name = folderNameInput.value.trim();
@@ -1803,6 +1804,7 @@ async function createFolder() {
         alert('Error creating folder: ' + error.message);
     }
 }
+
 // Add this function to your JavaScript code, preferably in the "Marks functions" section
 async function addMarks() {
     const folderId = document.getElementById('current-folder').value;
