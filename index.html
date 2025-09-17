@@ -1820,6 +1820,25 @@ async function handleSignup() {
         showError('signup-error', error.message);
     }
 }
+async function handleLogin() {
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+    
+    if (!username || !password) {
+        showError('login-error', 'Please fill in all fields');
+        return;
+    }
+    
+    try {
+        const result = await authAPI.login(username, password);
+        localStorage.setItem('authToken', result.token);
+        currentUser = result.user;
+        showPage('app-page');
+        loadUserData();
+    } catch (error) {
+        showError('login-error', error.message);
+    }
+}
 
 // ✅ Fixed createFolder function
 async function createFolder() {
