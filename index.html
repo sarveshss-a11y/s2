@@ -1351,7 +1351,45 @@ const dataAPI = {
             Don't have an account? <a href="#" class="link" id="signup-link">Sign Up</a>
         </p>
     </div>
-    
+    <!-- Add Marks Modal -->
+<div class="modal" id="marks-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Add Marks</h3>
+            <button class="modal-close" data-modal="marks-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="marks-folder">Folder</label>
+                <select id="marks-folder" class="form-control">
+                    <option value="">Select a folder</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="mark-subject">Subject</label>
+                <input type="text" id="mark-subject" class="form-control" placeholder="Subject name">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="mark-score">Marks Obtained</label>
+                    <input type="number" id="mark-score" class="form-control" placeholder="Marks obtained">
+                </div>
+                <div class="form-group">
+                    <label for="mark-total">Total Marks</label>
+                    <input type="number" id="mark-total" class="form-control" placeholder="Total marks">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="mark-date">Date</label>
+                <input type="date" id="mark-date" class="form-control" value="<?php echo date('Y-m-d'); ?>">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-warning" data-modal="marks-modal">Cancel</button>
+            <button class="btn btn-success" id="save-marks-btn">Save Marks</button>
+        </div>
+    </div>
+</div>
     <!-- Main App Page -->
     <div class="page" id="app-page">
         <div class="app-container">
@@ -1690,10 +1728,6 @@ initApp();
 
 // Event Listeners
 function setupEventListeners() {
-    document.getElementById('current-folder').addEventListener('change', function() {
-    selectedFolderId = this.value;
-});
-
     // Auth navigation
     document.getElementById('login-link').addEventListener('click', () => showPage('login-page'));
     document.getElementById('signup-link').addEventListener('click', () => showPage('signup-page'));
@@ -1735,30 +1769,18 @@ function setupEventListeners() {
             hideModal(modalId);
         });
     });
-    document.getElementById('chart-type-select').addEventListener('change', (e) => {
-    chartType = e.target.value;
-    localStorage.setItem('chartType', chartType); // ✅ save preference
-    renderChart();
-});
-
     
-    // Toggle password visibility
-   // Toggle password visibility
-// ✅ Fixed Password Toggle
-document.querySelectorAll('.toggle-password').forEach(button => {
-    button.addEventListener('click', function() {
-        const container = this.closest('.password-container');
-        const input = container.querySelector('input');
-        if (input.type === 'password') {
-            input.type = 'text';
-            this.textContent = '🔒';
-        } else {
-            input.type = 'password';
-            this.textContent = '👁️';
-        }
+    // Chart type selection
+    document.getElementById('chart-type-select').addEventListener('change', (e) => {
+        chartType = e.target.value;
+        localStorage.setItem('chartType', chartType);
+        renderChart();
     });
-});
+    
+    // Setup password toggles
+    setupPasswordToggles();
 }
+
 // ✅ Add this function below handleSignup()
 async function handleLogin() {
     const username = document.getElementById('login-username').value;
@@ -1948,10 +1970,10 @@ async function createSubfolder() {
     }
 
     try {
-        await dataAPI.createFolder(name, parentId); // <-- parentId is passed
+        await dataAPI.createFolder(name, parentId);
         hideModal('subfolder-modal');
         await loadUserData(); // refresh sidebar
-        alert("Subfolder created!");
+        alert("Subfolder created successfully!");
     } catch (error) {
         console.error("Error creating subfolder:", error);
         alert("Error: " + error.message);
@@ -2320,13 +2342,60 @@ function renderFolderRecursive(folder, container) {
     container.appendChild(folderItem);
 }
 
+// Marks functions
+async function addMarks() {
+    const folderId = document.getElementById('current-folder').value;
+    const subject = document.getElementById('subject').value.trim();
+    const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
+    const totalMarks = parseFloat(document.getElementById('total-marks').value);
+    const date = document.getElementById('marks-date').value;
+
+    if (!folderId) {
+        alert('Please select a folder first');
+        return;
+    }
+
+    if (!subject || isNaN(marksObtained) || isNaN(totalMarks) || !date) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    if (marksObtained > totalMarks) {
+        alert('Marks obtained cannot be greater than total marks');
+        return;
+    }
+
+    try {
+        const result = await dataAPI.addMarks(folderId, {
+            subject,
+            marksObtained,
+            totalMarks,
+            date
+        });
+
+        // Clear form
+        document.getElementById('subject').value = '';
+        document.getElementById('marks-obtained').value = '';
+        document.getElementById('total-marks').value = '';
+        
+        // Refresh data
+        await loadUserData();
+        alert('Marks added successfully!');
+    } catch (error) {
+        console.error('Error adding marks:', error);
+        alert('Error adding marks: ' + error.message);
+    }
+}
+
+// Replace the openAddMarksModal function
 function openAddMarksModal() {
     // Fill the folder dropdown before showing modal
     populateFolderSelect('marks-folder');
-
-    // Show your marks modal (you already use showModal for signup/subfolders etc.)
     showModal('marks-modal');
 }
+
+// Add this event listener to your setupEventListeners function
+document.getElementById('save-marks-btn').addEventListener('click', addMarks);
 
 function populateFolderSelect(selectId) {
     const select = document.getElementById(selectId);
@@ -2822,22 +2891,53 @@ function clearUI() {
 
 // Data loading
 // Replace the loadUserData function with this:
+// Data loading
 async function loadUserData() {
     try {
-        const data = await dataAPI.getUserData(); // calls /api/user
+        const data = await dataAPI.getUserData();
         currentUser = { username: data.username };
         folders = data.folders || [];
+        
+        // Extract all marks from folders and subfolders
+        marks = [];
+        function extractMarks(folderArray) {
+            folderArray.forEach(folder => {
+                if (folder.marks && folder.marks.length > 0) {
+                    folder.marks.forEach(mark => {
+                        marks.push({
+                            ...mark,
+                            folderId: folder.id,
+                            folderName: folder.name
+                        });
+                    });
+                }
+                
+                if (folder.subfolders && folder.subfolders.length > 0) {
+                    extractMarks(folder.subfolders);
+                }
+            });
+        }
+        extractMarks(folders);
 
         // Update UI with username/avatar
         document.getElementById('user-name').textContent = currentUser.username || "User";
         document.getElementById('user-avatar').textContent = (currentUser.username || "U")[0].toUpperCase();
 
-        // ✅ Render folders into sidebar
+        // Render folders into sidebar
         renderFolders(folders);
+        
+        // Update folder selects
+        updateFolderSelects();
+        
+        // Update UI
+        renderMarksTable();
+        updateStats();
+        renderChart();
     } catch (error) {
         console.error("Failed to load user data:", error);
         folders = [];
-        renderFolders([]); // only clear if API totally fails
+        marks = [];
+        renderFolders([]);
     }
 }
 
