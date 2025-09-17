@@ -1455,7 +1455,7 @@ const dataAPI = {
                             <div class="form-group">
                                 <label for="current-folder">Current
                                     Folder</label>
-                                <select id="current-folder"
+                                <select id="marks-folder"
                                     class="form-control">
                                     <option value>Select a folder</option>
                                 </select>
@@ -2302,7 +2302,7 @@ function renderFolderRecursive(folder, container) {
 
 // Marks functions
 async function addMarks() {
-    const folderId = document.getElementById('current-folder').value;
+const folderId = document.getElementById('marks-folder').value;
     const subject = document.getElementById('subject').value.trim();
     const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
@@ -2750,7 +2750,7 @@ function renderChart() {
 
 // Replace the updateFolderSelects function with this:
 function updateFolderSelects() {
-    const currentFolderSelect = document.getElementById('current-folder');
+    const currentFolderSelect = document.getElementById('marks-folder');
     const folderFilterSelect = document.getElementById('folder-select');
     
     // Clear existing options except the first one
