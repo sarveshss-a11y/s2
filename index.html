@@ -1084,9 +1084,6 @@ async function apiRequest(endpoint, options = {}) {
     // Add authorization header if token exists
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('Adding Authorization header with token');
-    } else {
-        console.warn('No token found for API request to:', endpoint);
     }
 
     if (config.body && typeof config.body === 'object') {
@@ -1094,7 +1091,6 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     try {
-        console.log('Making API request to:', url);
         const response = await fetch(url, config);
         
         // Check if response is unauthorized
@@ -1104,6 +1100,7 @@ async function apiRequest(endpoint, options = {}) {
             throw new Error('Session expired. Please login again.');
         }
         
+        // Handle non-JSON responses
         const contentType = response.headers.get('content-type');
         let data;
         
@@ -1111,10 +1108,11 @@ async function apiRequest(endpoint, options = {}) {
             data = await response.json();
         } else {
             data = await response.text();
+            console.warn('Non-JSON response received:', data);
         }
 
         if (!response.ok) {
-            throw new Error(data.message || `Server error: ${response.status}`);
+            throw new Error(data.message || data.error || `Server error: ${response.status}`);
         }
 
         return data;
@@ -2302,7 +2300,7 @@ function renderFolderRecursive(folder, container) {
 
 // Marks functions
 async function addMarks() {
-const folderId = document.getElementById('marks-folder').value;
+    const folderId = document.getElementById('marks-folder').value;
     const subject = document.getElementById('subject').value.trim();
     const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
@@ -2332,10 +2330,16 @@ const folderId = document.getElementById('marks-folder').value;
             date
         });
 
-        // Add the new mark to our local state with the folder name
+        // Find the folder to get its name
         const folder = findFolderById(folders, folderId);
+        
+        // Add the new mark to our local state with proper data
         marks.push({
-            ...newMark,
+            id: newMark.id || Date.now().toString(), // Ensure we have an ID
+            subject: subject,
+            marksObtained: marksObtained,
+            totalMarks: totalMarks,
+            date: date,
             folderId: folderId,
             folderName: folder ? folder.name : 'Unknown'
         });
@@ -2551,6 +2555,8 @@ function setupPasswordToggles() {
 function renderMarksTable(folderId = 'all') {
     const tableBody = document.getElementById('marks-table-body');
     const emptyState = document.getElementById('empty-marks');
+    
+    // Clear the table
     tableBody.innerHTML = '';
     
     let filteredMarks = marks;
@@ -2560,6 +2566,7 @@ function renderMarksTable(folderId = 'all') {
     
     if (filteredMarks.length === 0) {
         emptyState.style.display = 'block';
+        tableBody.innerHTML = '';
         return;
     }
     
@@ -2572,9 +2579,6 @@ function renderMarksTable(folderId = 'all') {
         const percentage = totalMarks > 0 ? (marksObtained / totalMarks) * 100 : 0;
         const percentageClass = percentage >= 80 ? 'high' : percentage >= 50 ? 'medium' : 'low';
         
-        const folder = findFolderById(folders, mark.folderId);
-        const folderName = folder ? folder.name : 'Unknown';
-        
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${mark.subject || 'N/A'}</td>
@@ -2582,7 +2586,7 @@ function renderMarksTable(folderId = 'all') {
             <td>${totalMarks}</td>
             <td><span class="percentage ${percentageClass}">${percentage.toFixed(1)}%</span></td>
             <td>${mark.date || 'N/A'}</td>
-            <td>${folderName}</td>
+            <td>${mark.folderName || 'Unknown'}</td>
             <td class="action-buttons">
                 <button class="action-btn edit" onclick="editMarks('${mark.id}')">Edit</button>
                 <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">Delete</button>
@@ -2849,10 +2853,15 @@ async function loadUserData() {
             folderArray.forEach(folder => {
                 if (folder.marks && folder.marks.length > 0) {
                     folder.marks.forEach(mark => {
+                        // Ensure all required fields exist
                         marks.push({
-                            ...mark,
+                            id: mark.id || 'unknown-id',
+                            subject: mark.subject || 'Unknown Subject',
+                            marksObtained: mark.marksObtained || 0,
+                            totalMarks: mark.totalMarks || 0,
+                            date: mark.date || 'Unknown Date',
                             folderId: folder.id,
-                            folderName: folder.name
+                            folderName: folder.name || 'Unknown Folder'
                         });
                     });
                 }
@@ -2954,6 +2963,22 @@ function debugMarks() {
     console.log(`Total marks in folders: ${totalMarks}`);
     console.log(`Total marks in extracted array: ${marks.length}`);
 }
+
+function debugData() {
+    console.log('=== DEBUG DATA ===');
+    console.log('Current user:', currentUser);
+    console.log('Folders:', folders);
+    console.log('Marks:', marks);
+    
+    // Check API response structure
+    dataAPI.getUserData()
+        .then(data => console.log('API Response:', data))
+        .catch(error => console.error('API Error:', error));
+}
+
+// You can call this from the browser console to debug
+window.debugData = debugData;
+
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
