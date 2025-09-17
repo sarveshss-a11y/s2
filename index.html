@@ -2112,6 +2112,67 @@ async function deleteAccount() {
     }
 }
 
+function renderFolders(folders) {
+    const container = document.getElementById("folders-container");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!folders || folders.length === 0) {
+        container.innerHTML = "<p>No folders available</p>";
+        return;
+    }
+
+    folders.forEach(folder => {
+        const div = document.createElement("div");
+        div.className = "folder-item";
+        div.textContent = folder.name || "Untitled Folder";
+
+        // if marks exist, show count
+        if (folder.marks && folder.marks.length > 0) {
+            const markInfo = document.createElement("span");
+            markInfo.textContent = ` (${folder.marks.length} marks)`;
+            div.appendChild(markInfo);
+        }
+
+        // add to container
+        container.appendChild(div);
+
+        // render subfolders recursively
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const subDiv = document.createElement("div");
+            subDiv.className = "subfolders";
+            div.appendChild(subDiv);
+            renderFoldersInto(folder.subfolders, subDiv);
+        }
+    });
+}
+
+// helper for recursion
+function renderFoldersInto(folders, container) {
+    folders.forEach(folder => {
+        const div = document.createElement("div");
+        div.className = "folder-item";
+        div.textContent = folder.name || "Untitled Folder";
+
+        if (folder.marks && folder.marks.length > 0) {
+            const markInfo = document.createElement("span");
+            markInfo.textContent = ` (${folder.marks.length} marks)`;
+            div.appendChild(markInfo);
+        }
+
+        container.appendChild(div);
+
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const subDiv = document.createElement("div");
+            subDiv.className = "subfolders";
+            div.appendChild(subDiv);
+            renderFoldersInto(folder.subfolders, subDiv);
+        }
+    });
+}
+
+
 // UI Rendering functions
 function renderFolderRecursive(folder, container) {
     const folderItem = document.createElement("div");
