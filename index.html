@@ -1874,24 +1874,32 @@ function checkAuthStatus() {
 
 // Folder functions
 // Replace the createFolder function with this:
-async function createFolder() {
-    const folderName = document.getElementById('folderName').value;
-    if (!folderName) {
-        alert('Please enter a folder name');
-        return;
-    }
-
+async function createFolder(name, parentId = null) {
     try {
-        await dataAPI.createFolder(folderName);
-        
-        // Refresh data from server
-        await loadUserData();
-        
-        document.getElementById('folderName').value = '';
-    } catch (error) {
-        alert('Error creating folder: ' + error.message);
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_BASE}/api/folders`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ name, parentId })
+        });
+
+        if (!res.ok) throw new Error("Failed to create folder");
+        const data = await res.json();
+
+        // ✅ update UI immediately
+        if (!window.userData) window.userData = { folders: [] };
+        window.userData.folders.push(data.folder);
+
+        renderFolders(window.userData.folders);
+    } catch (err) {
+        console.error("Error creating folder:", err);
+        alert("Failed to create folder");
     }
 }
+
 
 
 // Replace the createSubfolder function with this:
