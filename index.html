@@ -1061,7 +1061,7 @@ body.dark-mode #average-percentage {
             color: var(--primary);
         }
     </style>
-        <script defer>
+        <script>
 // API Configuration - Make sure this points to port 3000
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:3000'  // This should be port 3000 since your server is running there
@@ -1673,7 +1673,7 @@ const dataAPI = {
             </div>
         </div>
 
-        <script>    
+        <script>
     let chartType = localStorage.getItem('chartType') || 'bar';
 
 // State management
@@ -1736,12 +1736,7 @@ if (document.readyState === 'loading') {
 // Start the app
 initApp();
 
-document.addEventListener('DOMContentLoaded', () => {
-  const addMarksBtn = document.getElementById('add-marks-btn');
-  if (addMarksBtn) {
-    addMarksBtn.addEventListener('click', addMarks);
-  }
-});
+
 
 // Event Listeners
 function setupEventListeners() {
@@ -2311,26 +2306,60 @@ async function addMarks() {
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
     const date = document.getElementById('marks-date').value;
 
-    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("Please fill in all fields correctly");
+    if (!folderId) {
+        alert('Please select a folder first');
+        return;
+    }
+
+    if (!subject || isNaN(marksObtained) || isNaN(totalMarks) || !date) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    if (marksObtained > totalMarks) {
+        alert('Marks obtained cannot be greater than total marks');
         return;
     }
 
     try {
-        await dataAPI.createMark(folderId, {
+        // Your API call to save marks
+        const newMark = await dataAPI.addMarks(folderId, {
             subject,
             marksObtained,
             totalMarks,
             date
         });
-        await loadUserData();
-        alert("Mark added successfully!");
+
+        // Find the folder to get its name
+        const folder = findFolderById(folders, folderId);
+        
+        // Add the new mark to our local state with proper data
+        marks.push({
+            id: newMark.id || Date.now().toString(), // Ensure we have an ID
+            subject: subject,
+            marksObtained: marksObtained,
+            totalMarks: totalMarks,
+            date: date,
+            folderId: folderId,
+            folderName: folder ? folder.name : 'Unknown'
+        });
+
+        // Clear form
+        document.getElementById('subject').value = '';
+        document.getElementById('marks-obtained').value = '';
+        document.getElementById('total-marks').value = '';
+        
+        // Update UI
+        renderMarksTable(document.getElementById('folder-select').value);
+        updateStats();
+        renderChart();
+        
+        alert('Marks added successfully!');
     } catch (error) {
-        console.error("Error adding mark:", error);
-        alert("Error adding mark: " + error.message);
+        console.error('Error adding marks:', error);
+        alert('Error adding marks: ' + error.message);
     }
 }
-
 
 // Replace the openAddMarksModal function
 
