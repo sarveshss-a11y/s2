@@ -2300,6 +2300,7 @@ function renderFolderRecursive(folder, container) {
 
 // Marks functions
 // Replace the addMarks function with this corrected version
+// Replace the addMarks function with this corrected version
 async function addMarks() {
     const folderId = document.getElementById('marks-folder').value;
     const subject = document.getElementById('subject').value.trim();
@@ -2324,11 +2325,14 @@ async function addMarks() {
 
     try {
         // Call the API to save marks to the database
-        const newMark = await dataAPI.addMarks(folderId, {
-            subject,
-            marksObtained,
-            totalMarks,
-            date
+        const result = await apiRequest(`/api/folders/${folderId}/marks`, {
+            method: 'POST',
+            body: {
+                subject,
+                marksObtained,
+                totalMarks,
+                date
+            }
         });
 
         // Clear form
