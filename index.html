@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marks Explorer with Data Persistence</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Marks Explorer with Data Persistence</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script
+            src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+        <style>
         .toggle-arrow {
     margin-right: 8px;
     cursor: pointer;
@@ -1060,7 +1061,7 @@ body.dark-mode #average-percentage {
             color: var(--primary);
         }
     </style>
-    <script>
+        <script>
 // API Configuration - Make sure this points to port 3000
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:3000'  // This should be port 3000 since your server is running there
@@ -1231,381 +1232,450 @@ const dataAPI = {
         }),
 };
 </script>
-</head>
-<body>
-    <div class="api-status" id="api-status">Checking API connection...</div>
-    
-    <!-- Modals -->
-    <div class="modal" id="username-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Change Username</h3>
-                <button class="modal-close" data-modal="username-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="new-username">New Username</label>
-                    <input type="text" id="new-username" class="form-control" placeholder="Enter new username">
-                </div>
-                <div class="form-group">
-                    <label for="username-password">Current Password</label>
-                    <input type="password" id="username-password" class="form-control" placeholder="Enter your password">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-warning" data-modal="username-modal">Cancel</button>
-                <button class="btn btn-success" id="save-username-btn">Save Changes</button>
-            </div>
-        </div>
-    </div>
+    </head>
+    <body>
+        <div class="api-status" id="api-status">Checking API connection...</div>
 
-    <div class="modal" id="password-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Change Password</h3>
-                <button class="modal-close" data-modal="password-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="current-password">Current Password</label>
-                    <input type="password" id="current-password" class="form-control" placeholder="Enter current password">
+        <!-- Modals -->
+        <div class="modal" id="username-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Change Username</h3>
+                    <button class="modal-close"
+                        data-modal="username-modal">&times;</button>
                 </div>
-                <div class="form-group">
-                    <label for="new-password">New Password</label>
-                    <input type="password" id="new-password" class="form-control" placeholder="Enter new password">
-                </div>
-                <div class="form-group">
-                    <label for="confirm-new-password">Confirm New Password</label>
-                    <input type="password" id="confirm-new-password" class="form-control" placeholder="Confirm new password">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-warning" data-modal="password-modal">Cancel</button>
-                <button class="btn btn-success" id="save-password-btn">Save Changes</button>
-            </div>
-        </div>
-    </div>
-
-    
-
-<div class="container">
-    <!-- Signup Page -->
-    <div class="page active" id="signup-page">
-        <div class="header">
-            <h1>Create Account</h1>
-            <p>Sign up to start using Marks Explorer</p>
-        </div>
-        
-        <div class="alert alert-error" id="signup-error" style="display: none;"></div>
-        
-        <div class="form-group">
-            <label for="signup-username">Username</label>
-            <input type="text" id="signup-username" class="form-control" placeholder="Enter your username">
-        </div>
-        
-        <div class="form-group">
-            <label for="signup-password">Password</label>
-            <div class="password-container">
-                <input type="password" id="signup-password" class="form-control" placeholder="Create a strong password">
-                <button type="button" class="toggle-password">👁️</button>
-            </div>
-        </div>
-        
-        <div class="form-group">
-            <label for="signup-confirm">Confirm Password</label>
-            <input type="password" id="signup-confirm" class="form-control" placeholder="Confirm your password">
-        </div>
-        
-        <button class="btn btn-block" id="signup-btn">Sign Up</button>
-        
-        <p style="margin-top: 20px;">
-            Already have an account? <a href="#" class="link" id="login-link">Login</a>
-        </p>
-    </div>
-    
-    <!-- Login Page -->
-    <div class="page" id="login-page">
-        <div class="header">
-            <h1>Welcome Back</h1>
-            <p>Sign in to access your marks</p>
-        </div>
-        
-        <div class="alert alert-error" id="login-error" style="display: none;"></div>
-        
-        <div class="form-group">
-            <label for="login-username">Username</label>
-            <input type="text" id="login-username" class="form-control" placeholder="Enter your username">
-        </div>
-        
-        <div class="form-group">
-            <label for="login-password">Password</label>
-            <div class="password-container">
-                <input type="password" id="login-password" class="form-control" placeholder="Enter your password">
-                <button type="button" class="toggle-password">👁️</button>
-            </div>
-        </div>
-        
-        <button class="btn btn-block" id="login-btn">Login</button>
-        
-        <p style="margin-top: 20px;">
-            Don't have an account? <a href="#" class="link" id="signup-link">Sign Up</a>
-        </p>
-    </div>
-    <!-- Add Marks Modal -->
-
-    <!-- Main App Page -->
-    <div class="page" id="app-page">
-        <div class="app-container">
-            <div class="sidebar">
-                <div class="user-info">
-                    <div class="user-avatar" id="user-avatar">U</div>
-                    <div class="user-details">
-                        <div class="user-name" id="user-name">Username</div>
-                        <div class="user-role">Student</div>
-                    </div>
-                </div>
-                
-                <div class="nav-section">
-                    <div class="nav-title">Folders</div>
-                    <div class="folder-input-container">
-                        <input type="text" id="folderName" class="form-control" placeholder="Folder name">
-                        <button class="btn btn-success" id="create-folder-btn">Add</button>
-                    </div>
-                    
-                    <div class="folder-structure" id="folder-list">
-                        <!-- Folders will be dynamically added here -->
-                    </div>
-                </div>
-                
-                
-                <div class="nav-section">
-                    <div class="nav-title">Overall Performance</div>
-                    <div class="stat-card" style="background: rgba(255,255,255,0.1); color: white;">
-                        <div class="stat-label">Average Percentage</div>
-                        <div class="stat-value" id="overall-percentage">0%</div>
-                    </div>
-                </div>
-                
-                <button class="btn btn-danger btn-block" id="logout-btn" style="margin-top: auto;">Logout</button>
-            </div>
-            
-            <div class="main-content">
-                <div class="content-header">
-                    <h2>Marks Dashboard</h2>
-                    <button class="settings-btn" id="settings-btn">⚙️</button>
-                </div>
-                
-                <div class="stats-cards">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Subjects</div>
-                        <div class="stat-value" id="total-subjects">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Highest Percentage</div>
-                        <div class="stat-value" id="highest-percentage">0%</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Lowest Percentage</div>
-                        <div class="stat-value" id="lowest-percentage">0%</div>
-                    </div>
-                </div>
-                
-                <div class="marks-form">
-                    <h3 class="form-title">Add New Marks</h3>
+                <div class="modal-body">
                     <div class="form-group">
-                        <label for="current-folder">Current Folder</label>
-                        <select id="current-folder" class="form-control">
-                            <option value="">Select a folder</option>
-                        </select>
+                        <label for="new-username">New Username</label>
+                        <input type="text" id="new-username"
+                            class="form-control"
+                            placeholder="Enter new username">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="subject">Subject</label>
-                            <input type="text" id="subject" class="form-control" placeholder="Subject name">
-                        </div>
-                        <div class="form-group">
-                            <label for="marks-obtained">Marks Obtained</label>
-                            <input type="number" id="marks-obtained" class="form-control" placeholder="Marks obtained">
-                        </div>
-                        <div class="form-group">
-                            <label for="total-marks">Total Marks</label>
-                            <input type="number" id="total-marks" class="form-control" placeholder="Total marks">
-                        </div>
-                         <div class="form-group">
-        <label for="marks-date">Date</label>
-        <input type="date" id="marks-date" class="form-control" value="<?php echo date('Y-m-d'); ?>">
-    </div>
-                    </div>
-<button class="btn btn-block" id="add-marks-btn">Add Marks</button>                </div>
-                
-                <div class="marks-list">
-                    <h3 class="form-title">Marks List</h3>
                     <div class="form-group">
-                        <select id="folder-select" class="form-control folder-select">
-                            <option value="all">All Folders</option>
-                        </select>
+                        <label for="username-password">Current Password</label>
+                        <input type="password" id="username-password"
+                            class="form-control"
+                            placeholder="Enter your password">
                     </div>
-                    <div id="marks-table-container">
-                        <table class="marks-table">
-                            <thead>
-                                <tr>
-                                    <th>Subject</th>
-                                    <th>Marks Obtained</th>
-                                    <th>Total Marks</th>
-                                    <th>Percentage</th>
-                                                <th>Date</th>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-warning"
+                        data-modal="username-modal">Cancel</button>
+                    <button class="btn btn-success" id="save-username-btn">Save
+                        Changes</button>
+                </div>
+            </div>
+        </div>
 
-                                    <th>Folder</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="marks-table-body">
-                                <!-- Marks will be dynamically added here -->
-                            </tbody>
-                        </table>
+        <div class="modal" id="password-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Change Password</h3>
+                    <button class="modal-close"
+                        data-modal="password-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="current-password">Current Password</label>
+                        <input type="password" id="current-password"
+                            class="form-control"
+                            placeholder="Enter current password">
                     </div>
-                    <div class="empty-state" id="empty-marks" style="display: none;">
-                        <div>📝</div>
-                        <p>No marks added yet. Add your first marks to get started!</p>
+                    <div class="form-group">
+                        <label for="new-password">New Password</label>
+                        <input type="password" id="new-password"
+                            class="form-control"
+                            placeholder="Enter new password">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-new-password">Confirm New
+                            Password</label>
+                        <input type="password" id="confirm-new-password"
+                            class="form-control"
+                            placeholder="Confirm new password">
                     </div>
                 </div>
-                
-                <div class="progress-report">
-                    <h3 class="form-title">Progress Report</h3>
-                    <div class="chart-container">
-                        <canvas id="progress-chart"></canvas>
-                    </div>
-                    <button class="btn btn-info download-btn" id="download-report-btn">Download Report</button>
+                <div class="modal-footer">
+                    <button class="btn btn-warning"
+                        data-modal="password-modal">Cancel</button>
+                    <button class="btn btn-success" id="save-password-btn">Save
+                        Changes</button>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Settings Page -->
-    <div class="page" id="settings-page">
-        <button class="btn btn-warning back-btn" id="back-btn">
-            <i>←</i> Back to Dashboard
-        </button>
-        
-        <div class="header">
-            <h1>Settings</h1>
-            <p>Manage your account preferences</p>
-        </div>
-        
-        <div class="settings-container">
-            <div class="settings-section">
-                <h3 class="settings-title"><i>👤</i> Account Settings</h3>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Change Username</h4>
-                        <p>Update your account username</p>
-                    </div>
-                    <div class="option-control">
-                        <button class="btn" id="change-username-btn">Change</button>
+
+        <div class="container">
+            <!-- Signup Page -->
+            <div class="page active" id="signup-page">
+                <div class="header">
+                    <h1>Create Account</h1>
+                    <p>Sign up to start using Marks Explorer</p>
+                </div>
+
+                <div class="alert alert-error" id="signup-error"
+                    style="display: none;"></div>
+
+                <div class="form-group">
+                    <label for="signup-username">Username</label>
+                    <input type="text" id="signup-username" class="form-control"
+                        placeholder="Enter your username">
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <div class="password-container">
+                        <input type="password" id="signup-password"
+                            class="form-control"
+                            placeholder="Create a strong password">
+                        <button type="button"
+                            class="toggle-password">👁️</button>
                     </div>
                 </div>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Change Password</h4>
-                        <p>Update your account password</p>
-                    </div>
-                    <div class="option-control">
-                        <button class="btn" id="change-password-btn">Change</button>
-                    </div>
+
+                <div class="form-group">
+                    <label for="signup-confirm">Confirm Password</label>
+                    <input type="password" id="signup-confirm"
+                        class="form-control"
+                        placeholder="Confirm your password">
                 </div>
+
+                <button class="btn btn-block" id="signup-btn">Sign Up</button>
+
+                <p style="margin-top: 20px;">
+                    Already have an account? <a href="#" class="link"
+                        id="login-link">Login</a>
+                </p>
             </div>
-            
-            <div class="settings-section">
-                <h3 class="settings-title"><i>🎨</i> Appearance</h3>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Dark Mode</h4>
-                        <p>Toggle dark mode for better night viewing</p>
+
+            <!-- Login Page -->
+            <div class="page" id="login-page">
+                <div class="header">
+                    <h1>Welcome Back</h1>
+                    <p>Sign in to access your marks</p>
+                </div>
+
+                <div class="alert alert-error" id="login-error"
+                    style="display: none;"></div>
+
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" class="form-control"
+                        placeholder="Enter your username">
+                </div>
+
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="password-container">
+                        <input type="password" id="login-password"
+                            class="form-control"
+                            placeholder="Enter your password">
+                        <button type="button"
+                            class="toggle-password">👁️</button>
                     </div>
-                    <div class="option-control">
-                        <label class="theme-switch">
-                            <span class="theme-switch-text">Light</span>
-                            <div class="switch">
-                                <input type="checkbox" id="theme-switch">
-                                <span class="slider"></span>
+                </div>
+
+                <button class="btn btn-block" id="login-btn">Login</button>
+
+                <p style="margin-top: 20px;">
+                    Don't have an account? <a href="#" class="link"
+                        id="signup-link">Sign Up</a>
+                </p>
+            </div>
+            <!-- Add Marks Modal -->
+
+            <!-- Main App Page -->
+            <div class="page" id="app-page">
+                <div class="app-container">
+                    <div class="sidebar">
+                        <div class="user-info">
+                            <div class="user-avatar" id="user-avatar">U</div>
+                            <div class="user-details">
+                                <div class="user-name"
+                                    id="user-name">Username</div>
+                                <div class="user-role">Student</div>
                             </div>
-                            <span class="theme-switch-text">Dark</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-             <h3 class="settings-title"><i>📊</i> Chart Settings</h3>
-    
-    <div class="settings-option">
-        <div class="option-label">
-            <h4>Chart Type</h4>
-            <p>Select how you want to view your progress</p>
-        </div>
-        <div class="option-control">
-            <select id="chart-type-select" class="form-control">
-                <option value="bar">Bar</option>
-                <option value="line">Line</option>
-                <option value="pie">Pie</option>
-                <option value="doughnut">Doughnut</option>
-                <option value="radar">Radar</option>
-            </select>
-        </div>
-    </div>
-    <div class="settings-section">
-    <h3 class="settings-title"><i>📁</i> Data Management</h3>
-    
-    <div class="settings-option">
-        <div class="option-label">
-            <h4>Export Data</h4>
-            <p>Download all your data as a JSON file</p>
-        </div>
-        <div class="option-control">
-            <button class="btn btn-info" id="export-data-btn">Export Data</button>
-        </div>
-    </div>
-    
-    <div class="settings-option">
-        <div class="option-label">
-            <h4>Import Data</h4>
-            <p>Upload data from a JSON file</p>
-        </div>
-        <div class="option-control">
-            <input type="file" id="import-file" accept=".json" style="display: none;">
-            <button class="btn btn-info" id="import-data-btn">Import Data</button>
-        </div>
-    </div>
-</div>
-            <div class="danger-zone">
-                <h3 class="settings-title"><i>⚠️</i> Danger Zone</h3>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Clear All Data</h4>
-                        <p>Permanently delete all your marks and folders</p>
-                    </div>
-                    <div class="option-control">
-                        <button class="btn btn-danger" id="clear-data-btn">Clear Data</button>
-                    </div>
-                </div>
-                
-                <div class="settings-option">
-                    <div class="option-label">
-                        <h4>Delete Account</h4>
-                        <p>Permanently delete your account and all data</p>
-                    </div>
-                    <div class="option-control">
-                        <button class="btn btn-danger" id="delete-account-btn">Delete Account</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                        </div>
 
-<script>
+                        <div class="nav-section">
+                            <div class="nav-title">Folders</div>
+                            <div class="folder-input-container">
+                                <input type="text" id="folderName"
+                                    class="form-control"
+                                    placeholder="Folder name">
+                                <button class="btn btn-success"
+                                    id="create-folder-btn">Add</button>
+                            </div>
+
+                            <div class="folder-structure" id="folder-list">
+                                <!-- Folders will be dynamically added here -->
+                            </div>
+                        </div>
+
+                        <div class="nav-section">
+                            <div class="nav-title">Overall Performance</div>
+                            <div class="stat-card"
+                                style="background: rgba(255,255,255,0.1); color: white;">
+                                <div class="stat-label">Average Percentage</div>
+                                <div class="stat-value"
+                                    id="overall-percentage">0%</div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-danger btn-block" id="logout-btn"
+                            style="margin-top: auto;">Logout</button>
+                    </div>
+
+                    <div class="main-content">
+                        <div class="content-header">
+                            <h2>Marks Dashboard</h2>
+                            <button class="settings-btn"
+                                id="settings-btn">⚙️</button>
+                        </div>
+
+                        <div class="stats-cards">
+                            <div class="stat-card">
+                                <div class="stat-label">Total Subjects</div>
+                                <div class="stat-value"
+                                    id="total-subjects">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Highest Percentage</div>
+                                <div class="stat-value"
+                                    id="highest-percentage">0%</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Lowest Percentage</div>
+                                <div class="stat-value"
+                                    id="lowest-percentage">0%</div>
+                            </div>
+                        </div>
+
+                        <div class="marks-form">
+                            <h3 class="form-title">Add New Marks</h3>
+                            <div class="form-group">
+                                <label for="current-folder">Current
+                                    Folder</label>
+                                <select id="current-folder"
+                                    class="form-control">
+                                    <option value>Select a folder</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="subject">Subject</label>
+                                    <input type="text" id="subject"
+                                        class="form-control"
+                                        placeholder="Subject name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="marks-obtained">Marks
+                                        Obtained</label>
+                                    <input type="number" id="marks-obtained"
+                                        class="form-control"
+                                        placeholder="Marks obtained">
+                                </div>
+                                <div class="form-group">
+                                    <label for="total-marks">Total Marks</label>
+                                    <input type="number" id="total-marks"
+                                        class="form-control"
+                                        placeholder="Total marks">
+                                </div>
+                                <div class="form-group">
+                                    <label for="marks-date">Date</label>
+                                    <input type="date" id="marks-date"
+                                        class="form-control"
+                                        value="<?php echo date('Y-m-d'); ?>">
+                                </div>
+                            </div>
+                            <button class="btn btn-block" id="add-marks-btn">Add
+                                Marks</button> </div>
+
+                        <div class="marks-list">
+                            <h3 class="form-title">Marks List</h3>
+                            <div class="form-group">
+                                <select id="folder-select"
+                                    class="form-control folder-select">
+                                    <option value="all">All Folders</option>
+                                </select>
+                            </div>
+                            <div id="marks-table-container">
+                                <table class="marks-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Subject</th>
+                                            <th>Marks Obtained</th>
+                                            <th>Total Marks</th>
+                                            <th>Percentage</th>
+                                            <th>Date</th>
+
+                                            <th>Folder</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="marks-table-body">
+                                        <!-- Marks will be dynamically added here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="empty-state" id="empty-marks"
+                                style="display: none;">
+                                <div>📝</div>
+                                <p>No marks added yet. Add your first marks to
+                                    get started!</p>
+                            </div>
+                        </div>
+
+                        <div class="progress-report">
+                            <h3 class="form-title">Progress Report</h3>
+                            <div class="chart-container">
+                                <canvas id="progress-chart"></canvas>
+                            </div>
+                            <button class="btn btn-info download-btn"
+                                id="download-report-btn">Download
+                                Report</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="settings-page">
+                <button class="btn btn-warning back-btn" id="back-btn">
+                    <i>←</i> Back to Dashboard
+                </button>
+
+                <div class="header">
+                    <h1>Settings</h1>
+                    <p>Manage your account preferences</p>
+                </div>
+
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h3 class="settings-title"><i>👤</i> Account
+                            Settings</h3>
+
+                        <div class="settings-option">
+                            <div class="option-label">
+                                <h4>Change Username</h4>
+                                <p>Update your account username</p>
+                            </div>
+                            <div class="option-control">
+                                <button class="btn"
+                                    id="change-username-btn">Change</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-option">
+                            <div class="option-label">
+                                <h4>Change Password</h4>
+                                <p>Update your account password</p>
+                            </div>
+                            <div class="option-control">
+                                <button class="btn"
+                                    id="change-password-btn">Change</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3 class="settings-title"><i>🎨</i> Appearance</h3>
+
+                        <div class="settings-option">
+                            <div class="option-label">
+                                <h4>Dark Mode</h4>
+                                <p>Toggle dark mode for better night viewing</p>
+                            </div>
+                            <div class="option-control">
+                                <label class="theme-switch">
+                                    <span class="theme-switch-text">Light</span>
+                                    <div class="switch">
+                                        <input type="checkbox"
+                                            id="theme-switch">
+                                        <span class="slider"></span>
+                                    </div>
+                                    <span class="theme-switch-text">Dark</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="settings-title"><i>📊</i> Chart Settings</h3>
+
+                    <div class="settings-option">
+                        <div class="option-label">
+                            <h4>Chart Type</h4>
+                            <p>Select how you want to view your progress</p>
+                        </div>
+                        <div class="option-control">
+                            <select id="chart-type-select" class="form-control">
+                                <option value="bar">Bar</option>
+                                <option value="line">Line</option>
+                                <option value="pie">Pie</option>
+                                <option value="doughnut">Doughnut</option>
+                                <option value="radar">Radar</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3 class="settings-title"><i>📁</i> Data
+                            Management</h3>
+
+                        <div class="settings-option">
+                            <div class="option-label">
+                                <h4>Export Data</h4>
+                                <p>Download all your data as a JSON file</p>
+                            </div>
+                            <div class="option-control">
+                                <button class="btn btn-info"
+                                    id="export-data-btn">Export Data</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-option">
+                            <div class="option-label">
+                                <h4>Import Data</h4>
+                                <p>Upload data from a JSON file</p>
+                            </div>
+                            <div class="option-control">
+                                <input type="file" id="import-file"
+                                    accept=".json" style="display: none;">
+                                <button class="btn btn-info"
+                                    id="import-data-btn">Import Data</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="danger-zone">
+                        <h3 class="settings-title"><i>⚠️</i> Danger Zone</h3>
+
+                        <div class="settings-option">
+                            <div class="option-label">
+                                <h4>Clear All Data</h4>
+                                <p>Permanently delete all your marks and
+                                    folders</p>
+                            </div>
+                            <div class="option-control">
+                                <button class="btn btn-danger"
+                                    id="clear-data-btn">Clear Data</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-option">
+                            <div class="option-label">
+                                <h4>Delete Account</h4>
+                                <p>Permanently delete your account and all
+                                    data</p>
+                            </div>
+                            <div class="option-control">
+                                <button class="btn btn-danger"
+                                    id="delete-account-btn">Delete
+                                    Account</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
     let chartType = localStorage.getItem('chartType') || 'bar';
 
 // State management
@@ -1641,6 +1711,7 @@ async function checkApiConnection() {
 }
 
 // Initialize the app
+// Initialize the app when the DOM is loaded
 function initApp() {
     checkApiConnection();
     setupEventListeners();
@@ -1657,6 +1728,13 @@ function initApp() {
     setTimeout(setupPasswordToggles, 100);
 }
 
+// Start the app when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
 // Start the app
 initApp();
 
@@ -1665,35 +1743,35 @@ initApp();
 // Event Listeners
 function setupEventListeners() {
     // Auth navigation
-    document.getElementById('login-link').addEventListener('click', () => showPage('login-page'));
-    document.getElementById('signup-link').addEventListener('click', () => showPage('signup-page'));
+    document.getElementById('login-link')?.addEventListener('click', () => showPage('login-page'));
+    document.getElementById('signup-link')?.addEventListener('click', () => showPage('signup-page'));
     
     // Auth actions
-    document.getElementById('signup-btn').addEventListener('click', handleSignup);
-    document.getElementById('login-btn').addEventListener('click', handleLogin);
-    document.getElementById('logout-btn').addEventListener('click', handleLogout);
+    document.getElementById('signup-btn')?.addEventListener('click', handleSignup);
+    document.getElementById('login-btn')?.addEventListener('click', handleLogin);
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
     
     // Folder actions
-    document.getElementById('create-folder-btn').addEventListener('click', createFolder);    
+    document.getElementById('create-folder-btn')?.addEventListener('click', createFolder);    
     // Marks actions
-    document.getElementById('add-marks-btn').addEventListener('click', addMarks);
-    document.getElementById('folder-select').addEventListener('change', filterMarksByFolder);
+    document.getElementById('add-marks-btn')?.addEventListener('click', addMarks);
+    document.getElementById('folder-select')?.addEventListener('change', filterMarksByFolder);
     
     // Settings actions
-    document.getElementById('settings-btn').addEventListener('click', () => showPage('settings-page'));
-    document.getElementById('back-btn').addEventListener('click', () => showPage('app-page'));
-    document.getElementById('change-username-btn').addEventListener('click', () => showModal('username-modal'));
-    document.getElementById('change-password-btn').addEventListener('click', () => showModal('password-modal'));
-    document.getElementById('save-username-btn').addEventListener('click', changeUsername);
-    document.getElementById('save-password-btn').addEventListener('click', changePassword);
-    document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
-    document.getElementById('delete-account-btn').addEventListener('click', deleteAccount);
+    document.getElementById('settings-btn')?.addEventListener('click', () => showPage('settings-page'));
+    document.getElementById('back-btn')?.addEventListener('click', () => showPage('app-page'));
+    document.getElementById('change-username-btn')?.addEventListener('click', () => showModal('username-modal'));
+    document.getElementById('change-password-btn')?.addEventListener('click', () => showModal('password-modal'));
+    document.getElementById('save-username-btn')?.addEventListener('click', changeUsername);
+    document.getElementById('save-password-btn')?.addEventListener('click', changePassword);
+    document.getElementById('clear-data-btn')?.addEventListener('click', clearAllData);
+    document.getElementById('delete-account-btn')?.addEventListener('click', deleteAccount);
     
     // Theme toggle
-    document.getElementById('theme-switch').addEventListener('change', toggleTheme);
+    document.getElementById('theme-switch')?.addEventListener('change', toggleTheme);
     
     // Report download
-    document.getElementById('download-report-btn').addEventListener('click', downloadReport);
+    document.getElementById('download-report-btn')?.addEventListener('click', downloadReport);
     
     // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(button => {
@@ -1704,7 +1782,7 @@ function setupEventListeners() {
     });
     
     // Chart type selection
-    document.getElementById('chart-type-select').addEventListener('change', (e) => {
+    document.getElementById('chart-type-select')?.addEventListener('change', (e) => {
         chartType = e.target.value;
         localStorage.setItem('chartType', chartType);
         renderChart();
@@ -1712,34 +1790,6 @@ function setupEventListeners() {
     
     // Setup password toggles
     setupPasswordToggles();
-}
-
-// ✅ Add this function below handleSignup()
-async function handleLogin() {
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
-
-    if (!username || !password) {
-        showError('login-error', 'Please fill in all fields');
-        return;
-    }
-
-    try {
-        const result = await authAPI.login(username, password);
-
-        // Save token and user info
-        localStorage.setItem('authToken', result.token);
-        currentUser = result.user;
-
-        // Switch to main app
-        showPage('app-page');
-
-        // Load user data (folders, marks)
-        await loadUserData();
-    } catch (error) {
-        console.error('Login failed:', error);
-        showError('login-error', error.message || 'Login failed');
-    }
 }
 
 
@@ -2454,19 +2504,18 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 // Setup password toggles
 function setupPasswordToggles() {
     document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', function() {
+        button?.addEventListener('click', function() {
             const input = this.parentElement.querySelector('input');
-            if (input.type === 'password') {
+            if (input?.type === 'password') {
                 input.type = 'text';
                 this.textContent = '🔒';
-            } else {
+            } else if (input) {
                 input.type = 'password';
                 this.textContent = '👁️';
             }
         });
     });
 }
-
 // Add this function call at the end of your initApp function
 
 function renderMarksTable(folderId = 'all') {
@@ -2757,6 +2806,7 @@ function clearUI() {
 // Data loading
 // Replace the loadUserData function with this:
 // Data loading
+// Replace the loadUserData function with this:
 async function loadUserData() {
     try {
         const data = await dataAPI.getUserData();
@@ -2794,10 +2844,12 @@ async function loadUserData() {
         // Update folder selects
         updateFolderSelects();
         
-        // Update UI
-        renderMarksTable();
+        // Update UI - make sure we're showing all marks by default
+        renderMarksTable('all');
         updateStats();
         renderChart();
+        
+        console.log('Loaded data:', { folders, marks }); // Debug log
     } catch (error) {
         console.error("Failed to load user data:", error);
         folders = [];
@@ -2806,10 +2858,74 @@ async function loadUserData() {
     }
 }
 
+// Replace the renderMarksTable function with this:
+function renderMarksTable(folderId = 'all') {
+    const tableBody = document.getElementById('marks-table-body');
+    const emptyState = document.getElementById('empty-marks');
+    
+    // Clear the table
+    tableBody.innerHTML = '';
+    
+    let filteredMarks = marks;
+    if (folderId !== 'all') {
+        filteredMarks = marks.filter(mark => mark.folderId === folderId);
+    }
+    
+    if (filteredMarks.length === 0) {
+        emptyState.style.display = 'block';
+        tableBody.innerHTML = '';
+        return;
+    }
+    
+    emptyState.style.display = 'none';
+    
+    filteredMarks.forEach(mark => {
+        const percentage = mark.totalMarks > 0 
+            ? (mark.marksObtained / mark.totalMarks) * 100 
+            : 0;
+            
+        const percentageClass = percentage >= 80 ? 'high' : 
+                              percentage >= 50 ? 'medium' : 'low';
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${mark.subject || 'N/A'}</td>
+            <td>${mark.marksObtained}</td>
+            <td>${mark.totalMarks}</td>
+            <td><span class="percentage ${percentageClass}">${percentage.toFixed(1)}%</span></td>
+            <td>${mark.date || 'N/A'}</td>
+            <td>${mark.folderName || 'Unknown'}</td>
+            <td class="action-buttons">
+                <button class="action-btn edit" onclick="editMarks('${mark.id}')">Edit</button>
+                <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
 
 
+// Add this function to help debug
+function debugMarks() {
+    console.log('Current marks:', marks);
+    console.log('Current folders:', folders);
+    
+    // Check if marks are being extracted correctly
+    let totalMarks = 0;
+    folders.forEach(folder => {
+        if (folder.marks) totalMarks += folder.marks.length;
+        if (folder.subfolders) {
+            folder.subfolders.forEach(subfolder => {
+                if (subfolder.marks) totalMarks += subfolder.marks.length;
+            });
+        }
+    });
+    
+    console.log(`Total marks in folders: ${totalMarks}`);
+    console.log(`Total marks in extracted array: ${marks.length}`);
+}
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
-</body>
+    </body>
 </html>
