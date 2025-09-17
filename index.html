@@ -2181,38 +2181,30 @@ async function deleteAccount() {
     }
 }
 
-function renderFolders(folders) {
-    const container = document.getElementById("folders-container");
-    if (!container) return;
+function renderFolders(folderArray, parentElement = document.getElementById('folder-list')) {
+    parentElement.innerHTML = ""; // Clear existing
 
-    container.innerHTML = "";
-
-    if (!folders || folders.length === 0) {
-        container.innerHTML = "<p>No folders available</p>";
+    if (!folderArray || folderArray.length === 0) {
+        parentElement.innerHTML = `<div class="no-folders-message">No folders yet</div>`;
         return;
     }
 
-    folders.forEach(folder => {
-        const div = document.createElement("div");
-        div.className = "folder-item";
-        div.textContent = folder.name || "Untitled Folder";
+    folderArray.forEach(folder => {
+        const folderDiv = document.createElement("div");
+        folderDiv.classList.add("folder-item");
+        folderDiv.innerHTML = `
+            <span class="folder-icon">📁</span>
+            <span class="folder-name">${folder.name}</span>
+        `;
 
-        // if marks exist, show count
-        if (folder.marks && folder.marks.length > 0) {
-            const markInfo = document.createElement("span");
-            markInfo.textContent = ` (${folder.marks.length} marks)`;
-            div.appendChild(markInfo);
-        }
+        parentElement.appendChild(folderDiv);
 
-        // add to container
-        container.appendChild(div);
-
-        // render subfolders recursively
+        // If subfolders exist, render them
         if (folder.subfolders && folder.subfolders.length > 0) {
-            const subDiv = document.createElement("div");
-            subDiv.className = "subfolders";
-            div.appendChild(subDiv);
-            renderFoldersInto(folder.subfolders, subDiv);
+            const subContainer = document.createElement("div");
+            subContainer.classList.add("subfolder-container");
+            renderFolders(folder.subfolders, subContainer);
+            parentElement.appendChild(subContainer);
         }
     });
 }
@@ -2809,47 +2801,24 @@ function clearUI() {
 // Data loading
 // Replace the loadUserData function with this:
 async function loadUserData() {
-    if (!currentUser) return;
-    
     try {
-        const userData = await dataAPI.getUserData();
-        
-        // Extract all marks from all folders recursively
-        const extractAllMarks = (foldersArray) => {
-            let allMarks = [];
-            foldersArray.forEach(folder => {
-                if (folder.marks && folder.marks.length > 0) {
-                    folder.marks.forEach(mark => {
-                        allMarks.push({
-                            ...mark,
-                            folderId: folder.id,
-                            folderName: folder.name
-                        });
-                    });
-                }
-                if (folder.subfolders && folder.subfolders.length > 0) {
-                    allMarks = allMarks.concat(extractAllMarks(folder.subfolders));
-                }
-            });
-            return allMarks;
-        };
-        
-        folders = userData.folders || [];
-        marks = extractAllMarks(folders);
-        
-        document.getElementById('user-name').textContent = currentUser.username;
-        document.getElementById('user-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
-        
-        renderFolders();
-        updateFolderSelects();
-        renderMarksTable();
-        updateStats();
-        renderChart();
+        const data = await dataAPI.getUserData(); // calls /api/user
+        currentUser = { username: data.username };
+        folders = data.folders || [];
+
+        // Update UI with username
+        document.getElementById('user-name').textContent = currentUser.username || "User";
+        document.getElementById('user-avatar').textContent = (currentUser.username || "U")[0].toUpperCase();
+
+        // Render folders into sidebar
+        renderFolders(folders);
     } catch (error) {
-        console.error('Error loading user data:', error);
-        alert('Failed to load user data. Please try again.');
+        console.error('Failed to load user data:', error);
+        folders = [];
+        renderFolders([]); // Clear UI if failed
     }
 }
+
 
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
