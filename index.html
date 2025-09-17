@@ -2312,8 +2312,8 @@ async function addMarks() {
     }
 
     try {
-        const token = localStorage.getItem("token"); // 🔑 must send auth token
-        const res = await fetch(`${API_BASE}/folders/${folderId}/marks`, {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${backendUrl}/api/folders/${folderId}/marks`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -2329,13 +2329,14 @@ async function addMarks() {
 
         if (!res.ok) throw new Error("Failed to save marks");
 
-        await loadUserData(); // reloads from DB so UI matches DB
+        await loadUserData();
         alert("Mark added successfully!");
     } catch (error) {
         console.error("Error adding mark:", error);
         alert("Error adding mark: " + error.message);
     }
 }
+
 
 
 // Replace the openAddMarksModal function
