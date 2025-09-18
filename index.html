@@ -2027,66 +2027,68 @@ function findFolderById(id, folderList) {
 // Marks functions
 
 
-function editMarks(markId) {
+// ✏️ Edit Marks
+async function editMarks(markId) {
     const mark = marks.find(m => m.id === markId);
     if (!mark) return;
-    
-    const newSubject = prompt('Enter new subject name:', mark.subject);
+
+    const newSubject = prompt("Enter new subject name:", mark.subject);
     if (!newSubject) return;
-    
-    const newMarksObtained = parseFloat(prompt('Enter new marks obtained:', mark.marksObtained));
+
+    const newMarksObtained = parseFloat(prompt("Enter new marks obtained:", mark.marksObtained));
     if (isNaN(newMarksObtained)) return;
-    
-    const newTotalMarks = parseFloat(prompt('Enter new total marks:', mark.totalMarks));
+
+    const newTotalMarks = parseFloat(prompt("Enter new total marks:", mark.totalMarks));
     if (isNaN(newTotalMarks)) return;
-    
-    const newDate = prompt('Enter new date (YYYY-MM-DD):', mark.date);
+
+    const newDate = prompt("Enter new date (YYYY-MM-DD):", mark.date);
     if (!newDate) return;
-    
+
     if (newMarksObtained > newTotalMarks) {
-        alert('Marks obtained cannot be greater than total marks');
+        alert("⚠️ Marks obtained cannot be greater than total marks.");
         return;
     }
-    
-    dataAPI.updateMarks(mark.folderId, markId, {
-        subject: newSubject,
-        marksObtained: newMarksObtained,
-        totalMarks: newTotalMarks,
-        date: newDate
-    })
-    .then(updatedMark => {
-        const index = marks.findIndex(m => m.id === markId);
-        if (index !== -1) {
-            marks[index] = updatedMark;
-        }
-        renderMarksTable();
-        updateStats();
-        renderChart();
-    })
-    .catch(error => {
-        alert('Error updating marks: ' + error.message);
-    });
+
+    try {
+        const updatedMark = await dataAPI.updateMarks(mark.folderId, markId, {
+            subject: newSubject,
+            marksObtained: newMarksObtained,
+            totalMarks: newTotalMarks,
+            date: newDate
+        });
+
+        // Update in local state
+        const idx = marks.findIndex(m => m.id === markId);
+        if (idx !== -1) marks[idx] = updatedMark;
+
+        renderMarksTable(document.getElementById("folder-select").value);
+    } catch (err) {
+        console.error("❌ Error updating marks:", err);
+        alert("Failed to update marks. Please try again.");
+    }
 }
 
-function deleteMarks(markId) {
-    if (!confirm('Are you sure you want to delete these marks?')) {
-        return;
-    }
-    
+
+// 🗑️ Delete Marks
+async function deleteMarks(markId) {
     const mark = marks.find(m => m.id === markId);
     if (!mark) return;
-    
-    dataAPI.deleteMarks(mark.folderId, markId)
-        .then(() => {
-            marks = marks.filter(m => m.id !== markId);
-            renderMarksTable();
-            updateStats();
-            renderChart();
-        })
-        .catch(error => {
-            alert('Error deleting marks: ' + error.message);
-        });
+
+    if (!confirm("Delete this mark?")) return;
+
+    try {
+        await dataAPI.deleteMarks(mark.folderId, markId);
+
+        // Remove from local state
+        marks = marks.filter(m => m.id !== markId);
+
+        renderMarksTable(document.getElementById("folder-select").value);
+    } catch (err) {
+        console.error("❌ Error deleting marks:", err);
+        alert("Failed to delete mark. Please try again.");
+    }
 }
+
 
 function filterMarksByFolder() {
     const folderId = document.getElementById('folder-select').value;
@@ -2359,28 +2361,15 @@ async function addMarks() {
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
     const date = document.getElementById('marks-date').value;
 
-    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("⚠️ Please fill all fields correctly.");
+    if (!folderId) {
+        alert("⚠️ Please select a folder.");
         return;
     }
 
-    try {
-        // Save to backend
-        await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
-
-        // Refresh everything
-        await loadUserData();
-
-        // ✅ Clear only the text/number fields (not folder select)
-        document.getElementById('subject').value = '';
-        document.getElementById('marks-obtained').value = '';
-        document.getElementById('total-marks').value = '';
-        document.getElementById('marks-date').value = '';
-    } catch (err) {
-        console.error("❌ Error adding marks:", err);
-        alert("Failed to add marks. Please try again.");
-    }
+    await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
+    await loadUserData();
 }
+
 
 
 
@@ -2615,8 +2604,10 @@ function renderMarksTable(folderId = 'all') {
 
     filteredMarks.forEach(mark => {
         const percentage = ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2);
-        const folder = folders.find(f => f.id === mark.folderId);
-        const folderName = folder ? folder.name : "Unknown";
+
+        // ✅ Find the folder for this mark
+        const folder = folders.find(f => f.id == mark.folderId);
+        const folderName = folder ? folder.name : "❌ Unknown Folder";
 
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -2634,6 +2625,7 @@ function renderMarksTable(folderId = 'all') {
         tbody.appendChild(row);
     });
 }
+
 
 
 
