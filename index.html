@@ -678,6 +678,10 @@ body.dark-mode #average-percentage {
             background-color: var(--danger);
             color: white;
         }
+.folder-item.active-folder {
+    background: rgba(0, 123, 255, 0.1);
+    border-left: 3px solid #007bff;
+}
 
         .progress-report {
             background: white;
@@ -2156,10 +2160,11 @@ function renderFolders(folderArray, parentElement = document.getElementById('fol
     }
 
     folderArray.forEach(folder => {
-        // ✅ Create folder item
+        // 📁 Folder container
         const div = document.createElement("div");
         div.className = "folder-item";
 
+        // Folder content
         div.innerHTML = `
             <span class="folder-icon">📁</span>
             <span class="folder-name">${folder.name}</span>
@@ -2169,16 +2174,24 @@ function renderFolders(folderArray, parentElement = document.getElementById('fol
             </div>
         `;
 
-        // ✅ Show marks in table when folder is clicked
-        div.addEventListener("click", () => {
-            renderMarksTable(folder.marks || []);
+        // ✅ Click on folder → show marks table
+        div.addEventListener("click", (e) => {
+            e.stopPropagation();
+            selectedFolderId = folder.id;
+            renderMarksTable(folder.id);
+
+            // highlight active folder
+            document.querySelectorAll('.folder-item').forEach(el => el.classList.remove('active-folder'));
+            div.classList.add('active-folder');
         });
 
-        // ✅ Attach edit + delete actions
+        // ✅ Edit folder
         div.querySelector(".edit-btn").addEventListener("click", (e) => {
-            e.stopPropagation(); // prevent triggering click folder
+            e.stopPropagation();
             editFolder(folder.id, folder.name);
         });
+
+        // ✅ Delete folder
         div.querySelector(".delete-btn").addEventListener("click", (e) => {
             e.stopPropagation();
             deleteFolder(folder.id);
@@ -2186,7 +2199,7 @@ function renderFolders(folderArray, parentElement = document.getElementById('fol
 
         parentElement.appendChild(div);
 
-        // ✅ Render subfolders if present
+        // ✅ Render subfolders recursively
         if (folder.subfolders && folder.subfolders.length > 0) {
             const subDiv = document.createElement("div");
             subDiv.className = "subfolder-container";
@@ -2195,6 +2208,7 @@ function renderFolders(folderArray, parentElement = document.getElementById('fol
         }
     });
 }
+
 
 
 
@@ -2321,42 +2335,40 @@ async function addMarks() {
     const subject = document.getElementById('subject').value.trim();
     const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
-    const date = document.getElementById('marks-date').value;
+    const date = document.getElementById('marks-date').value || new Date().toISOString().split('T')[0];
 
     if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("Please fill in all fields");
+        alert("Please fill in all fields correctly");
+        return;
+    }
+
+    if (marksObtained > totalMarks) {
+        alert("Marks obtained cannot be greater than total marks");
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/folders/${folderId}/marks`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            },
-            body: JSON.stringify({ subject, marksObtained, totalMarks, date })
-        });
+        // send to API (uses your dataAPI wrapper)
+        await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
 
-        if (!response.ok) throw new Error('Failed to add marks');
-
-        // reload all user data
+        // reload folders/marks from server (this repopulates `folders` and `marks`)
         await loadUserData();
 
-        // ✅ Refresh the marks table for the folder where the mark was added
-        const updatedFolder = folders.find(f => f.id === folderId) 
-            || findFolderRecursively(folders, folderId);
+        // show the marks for the folder we just added to (pass folder id — NOT an array)
+        selectedFolderId = folderId;                  // optional state variable
+        renderMarksTable(folderId);                   // <-- IMPORTANT: pass id, not folder.marks
 
-        if (updatedFolder) {
-            renderMarksTable(updatedFolder.marks || []);
-        }
+        // refresh stats / chart if you have those helpers
+        if (typeof updateStats === 'function') updateStats();
+        if (typeof renderChart === 'function') renderChart();
 
         alert("Marks added successfully!");
     } catch (error) {
         console.error("Error adding marks:", error);
-        alert("Error adding marks: " + error.message);
+        alert("Error adding marks: " + (error.message || error));
     }
 }
+
 
 
 
@@ -2574,49 +2586,41 @@ function setupPasswordToggles() {
 }
 // Add this function call at the end of your initApp function
 
-function renderMarksTable(folderId = 'all') {
-    const tableBody = document.getElementById('marks-table-body');
-    const emptyState = document.getElementById('empty-marks');
-    
-    // Clear the table
-    tableBody.innerHTML = '';
-    
-    let filteredMarks = marks;
-    if (folderId !== 'all') {
-        filteredMarks = marks.filter(mark => mark.folderId === folderId);
+function renderMarksTable(folderId = "all") {
+    const tbody = document.getElementById("marks-table-body");
+    tbody.innerHTML = "";
+
+    let marksToRender = [];
+
+    if (folderId === "all") {
+        marksToRender = marks;
+    } else {
+        marksToRender = marks.filter(m => m.folderId === folderId);
     }
-    
-    if (filteredMarks.length === 0) {
-        emptyState.style.display = 'block';
-        tableBody.innerHTML = '';
+
+    if (!marksToRender || marksToRender.length === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="5">No marks found</td>`;
+        tbody.appendChild(tr);
         return;
     }
-    
-    emptyState.style.display = 'none';
-    
-    filteredMarks.forEach(mark => {
-        // Handle cases where mark data might be incomplete
-        const marksObtained = mark.marksObtained || 0;
-        const totalMarks = mark.totalMarks || 0;
-        const percentage = totalMarks > 0 ? (marksObtained / totalMarks) * 100 : 0;
-        const percentageClass = percentage >= 80 ? 'high' : percentage >= 50 ? 'medium' : 'low';
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${mark.subject || 'N/A'}</td>
-            <td>${marksObtained}</td>
-            <td>${totalMarks}</td>
-            <td><span class="percentage ${percentageClass}">${percentage.toFixed(1)}%</span></td>
-            <td>${mark.date || 'N/A'}</td>
-            <td>${mark.folderName || 'Unknown'}</td>
-            <td class="action-buttons">
-                <button class="action-btn edit" onclick="editMarks('${mark.id}')">Edit</button>
-                <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">Delete</button>
+
+    marksToRender.forEach(mark => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${mark.subject}</td>
+            <td>${mark.marksObtained}</td>
+            <td>${mark.totalMarks}</td>
+            <td>${mark.date || ""}</td>
+            <td>
+                <button onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
+                <button onclick="deleteMark('${mark.folderId}', '${mark.id}')">🗑️</button>
             </td>
         `;
-        tableBody.appendChild(row);
+        tbody.appendChild(tr);
     });
 }
+
 
 // Add this helper function to find folder by ID
 function findFolderById(folders, id) {
