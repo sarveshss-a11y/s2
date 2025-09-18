@@ -2633,15 +2633,22 @@ function findFolderById(folders, id) {
 }
 
 
-function updateUserStats() {
+function updateStats() {
+    const tbody = document.getElementById('marks-table-body');
+    tbody.innerHTML = '';
+
     if (!marks || marks.length === 0) {
         document.getElementById('total-subjects').textContent = 0;
         document.getElementById('overall-percentage').textContent = "0%";
         document.getElementById('highest-percentage').textContent = "0%";
         document.getElementById('lowest-percentage').textContent = "0%";
+        document.getElementById('empty-marks').style.display = 'block';
+        if (chart) chart.destroy();
         return;
     }
+    document.getElementById('empty-marks').style.display = 'none';
 
+    // --- Calculations ---
     const totalSubjects = marks.length;
     const totalMarks = marks.reduce((sum, m) => sum + (m.totalMarks || 0), 0);
     const obtainedMarks = marks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
@@ -2654,17 +2661,46 @@ function updateUserStats() {
     const highestPercentage = Math.max(...percentages).toFixed(2);
     const lowestPercentage = Math.min(...percentages).toFixed(2);
 
-    // ✅ Update stats cards
+    // --- Update stats cards ---
     document.getElementById('total-subjects').textContent = totalSubjects;
     document.getElementById('overall-percentage').textContent = averagePercentage + "%";
     document.getElementById('highest-percentage').textContent = highestPercentage + "%";
     document.getElementById('lowest-percentage').textContent = lowestPercentage + "%";
 
-    // ✅ Update chart
-    renderChart();
+    // --- Render Marks Table ---
+    marks.forEach(mark => {
+        const percentage = mark.totalMarks > 0
+            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2)
+            : 0;
 
-    // ✅ Re-render marks table with colored percentages
-    renderMarksTable();
+        let percentageClass = percentage >= 75 ? 'high' : (percentage >= 40 ? 'medium' : 'low');
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${mark.subject}</td>
+            <td>${mark.marksObtained}</td>
+            <td>${mark.totalMarks}</td>
+            <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
+            <td>${mark.date}</td>
+            <td>${getFolderName(mark.folderId)}</td>
+            <td class="action-buttons">
+                <button class="action-btn edit" data-id="${mark.id}" data-folder="${mark.folderId}">✏️</button>
+                <button class="action-btn delete" data-id="${mark.id}" data-folder="${mark.folderId}">🗑️</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // --- Edit/Delete event listeners ---
+    document.querySelectorAll('.action-btn.edit').forEach(btn => {
+        btn.addEventListener('click', () => editMark(btn.dataset.folder, btn.dataset.id));
+    });
+    document.querySelectorAll('.action-btn.delete').forEach(btn => {
+        btn.addEventListener('click', () => deleteMark(btn.dataset.folder, btn.dataset.id));
+    });
+
+    // --- Update Chart ---
+    renderChart();
 }
 
 function renderChart() {
