@@ -1851,30 +1851,27 @@ async function handleLogin() {
 }
 
 // ✅ Fixed createFolder function
+// ===============================
+// 📂 CREATE NEW FOLDER
+// ===============================
 async function createFolder() {
-    const folderNameInput = document.getElementById('folderName');
-    const name = folderNameInput.value.trim();
-    
-    if (!name) {
-        alert('Please enter a folder name');
-        return;
-    }
-    
+    const folderName = prompt("Enter folder name:");
+    if (!folderName) return;
+
     try {
-        const result = await dataAPI.createFolder(name);
-        
-        // Clear the input field
-        folderNameInput.value = '';
-        
-        // Refresh folders from server
-        await loadUserData();
-        
-        alert('Folder created successfully!');
-    } catch (error) {
-        console.error('Error creating folder:', error);
-        alert('Error creating folder: ' + error.message);
+        // 🔹 Send request to backend
+        await dataAPI.createFolder({ name: folderName });
+
+        // 🔹 Refresh data from backend
+        await loadUserData();   // this will update folders + sidebar + dropdown
+
+        alert("Folder created successfully!");
+    } catch (err) {
+        console.error("❌ Error creating folder:", err);
+        alert("Failed to create folder. Please try again.");
     }
 }
+
 
 // Add this function to your JavaScript code, preferably in the "Marks functions" section
 async function addMark() {
@@ -2620,6 +2617,9 @@ function findFolderById(folders, id) {
 }
 
 
+// ===============================
+// 📊 UPDATE DASHBOARD + MARKS
+// ===============================
 function updateStats() {
     const tbody = document.getElementById('marks-table-body');
     tbody.innerHTML = '';
@@ -2671,7 +2671,11 @@ function updateStats() {
             <td>${mark.subject}</td>
             <td>${mark.marksObtained}</td>
             <td>${mark.totalMarks}</td>
-            <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
+            <td>
+                <span class="percentage ${percentageClass}">
+                    ${mark.marksObtained}/${mark.totalMarks} (${percentage}%)
+                </span>
+            </td>
             <td>${mark.date}</td>
             <td>${getFolderName(mark.folderId)}</td>
             <td class="action-buttons">
@@ -2693,6 +2697,7 @@ function updateStats() {
     // --- Update Chart ---
     renderChart();
 }
+
 
 function renderChart() {
     const ctx = document.getElementById('progress-chart').getContext('2d');
@@ -2721,11 +2726,13 @@ function renderChart() {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,  // ✅ fixes chart height issue
             plugins: { legend: { display: false } },
             scales: { y: { beginAtZero: true, max: 100 } }
         }
     });
 }
+
  
 
 
