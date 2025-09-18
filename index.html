@@ -2338,36 +2338,34 @@ async function addMarks() {
     const date = document.getElementById('marks-date').value || new Date().toISOString().split('T')[0];
 
     if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("Please fill in all fields correctly");
-        return;
-    }
-
-    if (marksObtained > totalMarks) {
-        alert("Marks obtained cannot be greater than total marks");
+        alert("Please fill in all fields");
         return;
     }
 
     try {
-        // send to API (uses your dataAPI wrapper)
-        await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
+        const response = await fetch(`${API_BASE_URL}/api/folders/${folderId}/marks`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({ subject, marksObtained, totalMarks, date })
+        });
 
-        // reload folders/marks from server (this repopulates `folders` and `marks`)
+        if (!response.ok) throw new Error("Failed to add mark");
+
         await loadUserData();
 
-        // show the marks for the folder we just added to (pass folder id — NOT an array)
-        selectedFolderId = folderId;                  // optional state variable
-        renderMarksTable(folderId);                   // <-- IMPORTANT: pass id, not folder.marks
+        // render the marks for this folder
+        renderMarksTable(folderId);
 
-        // refresh stats / chart if you have those helpers
-        if (typeof updateStats === 'function') updateStats();
-        if (typeof renderChart === 'function') renderChart();
-
-        alert("Marks added successfully!");
+        alert("Mark added successfully!");
     } catch (error) {
-        console.error("Error adding marks:", error);
-        alert("Error adding marks: " + (error.message || error));
+        console.error("Error adding mark:", error);
+        alert("Error adding mark: " + error.message);
     }
 }
+
 
 
 
