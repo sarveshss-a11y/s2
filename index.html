@@ -2351,23 +2351,37 @@ function renderFolderRecursive(folder, container) {
 // Marks functions
 // ✅ Add marks to database
 // Add marks from form to database
+// ➕ Add Marks
 async function addMarks() {
     const folderId = document.getElementById('marks-folder').value;
-    const subject = document.getElementById('subject').value;
+    const subject = document.getElementById('subject').value.trim();
     const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
     const date = document.getElementById('marks-date').value;
 
     if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("Please fill all fields correctly.");
+        alert("⚠️ Please fill all fields correctly.");
         return;
     }
 
-    await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
-    
-    // ✅ Refresh UI
-    await loadUserData();
+    try {
+        // Save to backend
+        await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
+
+        // Refresh everything
+        await loadUserData();
+
+        // ✅ Clear only the text/number fields (not folder select)
+        document.getElementById('subject').value = '';
+        document.getElementById('marks-obtained').value = '';
+        document.getElementById('total-marks').value = '';
+        document.getElementById('marks-date').value = '';
+    } catch (err) {
+        console.error("❌ Error adding marks:", err);
+        alert("Failed to add marks. Please try again.");
+    }
 }
+
 
 
 
@@ -2582,40 +2596,45 @@ function setupPasswordToggles() {
 }
 // Add this function call at the end of your initApp function
 
-function renderMarksTable(folderId = "all") {
-    const tbody = document.getElementById("marks-table-body");
-    tbody.innerHTML = "";
+// 📊 Render Marks Table (filtered by folder)
+function renderMarksTable(folderId = 'all') {
+    const tbody = document.getElementById('marks-table-body');
+    tbody.innerHTML = '';
 
-    let marksToRender = [];
-
-    if (folderId === "all") {
-        marksToRender = marks;
-    } else {
-        marksToRender = marks.filter(m => m.folderId === folderId);
+    let filteredMarks = marks;
+    if (folderId !== 'all') {
+        filteredMarks = marks.filter(m => m.folderId === folderId);
     }
 
-    if (!marksToRender || marksToRender.length === 0) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="5">No marks found</td>`;
-        tbody.appendChild(tr);
+    if (filteredMarks.length === 0) {
+        document.getElementById('empty-marks').style.display = 'block';
         return;
+    } else {
+        document.getElementById('empty-marks').style.display = 'none';
     }
 
-    marksToRender.forEach(mark => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
+    filteredMarks.forEach(mark => {
+        const percentage = ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2);
+        const folder = folders.find(f => f.id === mark.folderId);
+        const folderName = folder ? folder.name : "Unknown";
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
             <td>${mark.subject}</td>
             <td>${mark.marksObtained}</td>
             <td>${mark.totalMarks}</td>
-            <td>${mark.date || ""}</td>
+            <td>${percentage}%</td>
+            <td>${mark.date}</td>
+            <td>${folderName}</td>
             <td>
-                <button onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
-                <button onclick="deleteMark('${mark.folderId}', '${mark.id}')">🗑️</button>
+                <button class="action-btn edit" onclick="editMarks('${mark.id}')">✏️</button>
+                <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">🗑️</button>
             </td>
         `;
-        tbody.appendChild(tr);
+        tbody.appendChild(row);
     });
 }
+
 
 
 // Add this helper function to find folder by ID
