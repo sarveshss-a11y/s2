@@ -2868,58 +2868,35 @@ function clearUI() {
 async function loadUserData() {
     try {
         const data = await dataAPI.getUserData();
-        currentUser = { username: data.username };
+
+        // Save folders and marks
         folders = data.folders || [];
-        
-        // Extract all marks from folders and subfolders
         marks = [];
-        function extractMarks(folderArray) {
-            folderArray.forEach(folder => {
-                if (folder.marks && folder.marks.length > 0) {
-                    folder.marks.forEach(mark => {
-                        // Ensure all required fields exist
-                        marks.push({
-                            id: mark.id || 'unknown-id',
-                            subject: mark.subject || 'Unknown Subject',
-                            marksObtained: mark.marksObtained || 0,
-                            totalMarks: mark.totalMarks || 0,
-                            date: mark.date || 'Unknown Date',
-                            folderId: folder.id,
-                            folderName: folder.name || 'Unknown Folder'
-                        });
-                    });
-                }
-                
-                if (folder.subfolders && folder.subfolders.length > 0) {
-                    extractMarks(folder.subfolders);
-                }
-            });
+
+        // Flatten all marks into the global marks array
+        function collectMarks(folder) {
+            if (folder.marks && folder.marks.length > 0) {
+                folder.marks.forEach(m => marks.push({ ...m, folderId: folder.id }));
+            }
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                folder.subfolders.forEach(sub => collectMarks(sub));
+            }
         }
-        extractMarks(folders);
+        folders.forEach(f => collectMarks(f));
 
-        // Update UI with username/avatar
-        document.getElementById('user-name').textContent = currentUser.username || "User";
-        document.getElementById('user-avatar').textContent = (currentUser.username || "U")[0].toUpperCase();
-
-        // Render folders into sidebar
+        // Render UI
         renderFolders(folders);
-        
-        // Update folder selects
-        updateFolderSelects();
-        
-        // Update UI - make sure we're showing all marks by default
-        renderMarksTable('all');
+        renderMarksTable(); // show all marks initially
+        populateFolderSelect("marks-folder");
+        populateFolderSelect("folder-select");
+
         updateStats();
         renderChart();
-        
-        console.log('Loaded data:', { folders, marks }); // Debug log
     } catch (error) {
         console.error("Failed to load user data:", error);
-        folders = [];
-        marks = [];
-        renderFolders([]);
     }
 }
+
 
 // Replace the renderMarksTable function with this:
 function renderMarksTable(folderId = 'all') {
