@@ -2341,44 +2341,23 @@ function renderFolderRecursive(folder, container) {
 // ✅ Add marks to database
 // Add marks from form to database
 async function addMarks() {
-    const folderId = document.getElementById("marks-folder").value;
-    const subject = document.getElementById("subject").value.trim();
-    const marksObtained = document.getElementById("marks-obtained").value;
-    const totalMarks = document.getElementById("total-marks").value;
-    const date = document.getElementById("marks-date").value;
+    const folderId = document.getElementById('marks-folder').value;
+    const subject = document.getElementById('subject').value;
+    const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
+    const totalMarks = parseFloat(document.getElementById('total-marks').value);
+    const date = document.getElementById('marks-date').value;
 
-    if (!folderId || !subject || !marksObtained || !totalMarks) {
-        alert("Please fill all fields and select a folder");
+    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
+        alert("Please fill all fields correctly.");
         return;
     }
 
-    const payload = {
-        subject,
-        marksObtained: parseFloat(marksObtained),
-        totalMarks: parseFloat(totalMarks),
-        date
-    };
-
-    console.log("➡️ Sending marks payload:", payload); // ✅ Debug log
-
-    try {
-        await dataAPI.addMarks(folderId, payload);
-
-        // Refresh UI
-        await loadUserData();
-
-        // Reset form
-        document.getElementById("subject").value = "";
-        document.getElementById("marks-obtained").value = "";
-        document.getElementById("total-marks").value = "";
-        document.getElementById("marks-date").value = "";
-
-        alert("Marks added successfully!");
-    } catch (error) {
-        console.error("❌ Error adding marks:", error);
-        alert("Error adding marks: " + error.message);
-    }
+    await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
+    
+    // ✅ Refresh UI
+    await loadUserData();
 }
+
 
 
 
@@ -2845,14 +2824,17 @@ async function loadUserData() {
     try {
         const userData = await dataAPI.getUserData();
 
-        currentUser = userData.username;
+        currentUser = userData.username || "Unknown User";
         folders = userData.folders || [];
 
-        // ✅ Flatten marks from all folders into one array
+        // 🔹 Flatten marks from all folders
         marks = [];
         function collectMarks(folder) {
             if (folder.marks && folder.marks.length > 0) {
-                folder.marks.forEach(m => marks.push(m));
+                folder.marks.forEach(m => {
+                    // keep folderId for lookup
+                    marks.push({ ...m, folderId: folder.id });
+                });
             }
             if (folder.subfolders && folder.subfolders.length > 0) {
                 folder.subfolders.forEach(sf => collectMarks(sf));
@@ -2860,16 +2842,17 @@ async function loadUserData() {
         }
         folders.forEach(f => collectMarks(f));
 
-        // ✅ Update UI
+        // 🔹 Update UI
         document.getElementById('user-name').textContent = currentUser;
         renderFolders();
         populateFolderSelect();
-        updateStats(); // <-- This will render table, stats, chart
+        updateStats();   // render table + stats + chart
     } catch (err) {
         console.error("Error loading user data:", err);
         alert("Could not load your data. Please login again.");
     }
 }
+
 
 
 
