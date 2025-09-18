@@ -1451,6 +1451,14 @@ const dataAPI = {
                                     id="lowest-percentage">0%</div>
                             </div>
                         </div>
+<div class="stat-card">
+    <div class="stat-label">Total Marks</div>
+    <div class="stat-value" id="total-marks-card">0</div>
+</div>
+<div class="stat-card">
+    <div class="stat-label">Obtained Marks</div>
+    <div class="stat-value" id="obtained-marks-card">0</div>
+</div>
 
                         <div class="marks-form">
                             <h3 class="form-title">Add New Marks</h3>
@@ -2642,6 +2650,8 @@ function updateStats() {
         document.getElementById('overall-percentage').textContent = "0%";
         document.getElementById('highest-percentage').textContent = "0%";
         document.getElementById('lowest-percentage').textContent = "0%";
+        document.getElementById('total-marks-card').textContent = 0;
+        document.getElementById('obtained-marks-card').textContent = 0;
         document.getElementById('empty-marks').style.display = 'block';
         if (chart) chart.destroy();
         return;
@@ -2666,6 +2676,8 @@ function updateStats() {
     document.getElementById('overall-percentage').textContent = averagePercentage + "%";
     document.getElementById('highest-percentage').textContent = highestPercentage + "%";
     document.getElementById('lowest-percentage').textContent = lowestPercentage + "%";
+    document.getElementById('total-marks-card').textContent = totalMarks;
+    document.getElementById('obtained-marks-card').textContent = obtainedMarks;
 
     // --- Render Marks Table ---
     marks.forEach(mark => {
