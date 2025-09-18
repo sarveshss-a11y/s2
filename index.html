@@ -2843,31 +2843,49 @@ function clearUI() {
 // ✅ Full updated loadUserData function
 async function loadUserData() {
     try {
-        const data = await dataAPI.getUserData();
+        const userData = await dataAPI.getUserData();
 
-        // Update global state
-        folders = data.folders || [];
-        currentUser = { username: data.username };
+        currentUser = userData.username;
+        folders = userData.folders || [];
 
-        // Update UI
-        document.getElementById("user-name").textContent = currentUser.username || "User";
-        document.getElementById("user-avatar").textContent = currentUser.username ? currentUser.username[0].toUpperCase() : "U";
+        // ✅ Flatten marks from all folders into one array
+        marks = [];
+        function collectMarks(folder) {
+            if (folder.marks && folder.marks.length > 0) {
+                folder.marks.forEach(m => marks.push(m));
+            }
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                folder.subfolders.forEach(sf => collectMarks(sf));
+            }
+        }
+        folders.forEach(f => collectMarks(f));
 
-        // Render folders in sidebar
-        renderFolders(folders, document.getElementById("folder-list"));
-
-        // ✅ Populate dropdowns with folder list
-        populateFolderSelect(folders);
-
-        // Render marks & stats
-renderMarksTable();
-        updateStats();
-    } catch (error) {
-        console.error("Error loading user data:", error);
+        // ✅ Update UI
+        document.getElementById('user-name').textContent = currentUser;
+        renderFolders();
+        populateFolderSelect();
+        updateStats(); // <-- This will render table, stats, chart
+    } catch (err) {
+        console.error("Error loading user data:", err);
+        alert("Could not load your data. Please login again.");
     }
 }
 
 
+
+function getFolderName(folderId) {
+    function findFolderName(folders, id) {
+        for (const f of folders) {
+            if (f.id === id) return f.name;
+            if (f.subfolders) {
+                const found = findFolderName(f.subfolders, id);
+                if (found) return found;
+            }
+        }
+        return "Unknown";
+    }
+    return findFolderName(folders, folderId);
+}
 
 
 // Replace the renderMarksTable function with this:
