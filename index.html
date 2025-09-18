@@ -1859,12 +1859,8 @@ async function createFolder() {
     if (!folderName) return;
 
     try {
-        // 🔹 Send request to backend
         await dataAPI.createFolder({ name: folderName });
-
-        // 🔹 Refresh data from backend
-        await loadUserData();   // this will update folders + sidebar + dropdown
-
+        await loadUserData();  // refresh sidebar + marks
         alert("Folder created successfully!");
     } catch (err) {
         console.error("❌ Error creating folder:", err);
@@ -1872,27 +1868,6 @@ async function createFolder() {
     }
 }
 
-
-// Add this function to your JavaScript code, preferably in the "Marks functions" section
-async function addMark() {
-    const folderId = document.getElementById('marks-folder').value;
-    const subject = document.getElementById('mark-subject').value.trim();
-    const score = document.getElementById('mark-score').value.trim();
-
-    if (!folderId || !subject || !score) {
-        alert("Please select a folder and enter all fields");
-        return;
-    }
-
-    try {
-        await dataAPI.createMark(folderId, { subject, score });
-        await loadUserData();
-        alert("Mark added successfully!");
-    } catch (error) {
-        console.error("Error adding mark:", error);
-        alert("Error adding mark: " + error.message);
-    }
-}
 
 
 
@@ -2156,62 +2131,29 @@ async function deleteAccount() {
 }
 
 // Replace the renderFolders function with this simplified version:
-function renderFolders(folderArray, parentElement = document.getElementById('folder-list')) {
-    parentElement.innerHTML = "";
+function renderFolders() {
+    const sidebar = document.getElementById("folders-list");
+    sidebar.innerHTML = "";
 
-    if (!folderArray || folderArray.length === 0) {
-        parentElement.innerHTML = `<div class="no-folders-message">No folders yet</div>`;
+    if (!folders || folders.length === 0) {
+        sidebar.innerHTML = "<p>No folders available</p>";
         return;
     }
 
-    folderArray.forEach(folder => {
-        // 📁 Folder container
-        const div = document.createElement("div");
-        div.className = "folder-item";
+    function renderFolder(folder, parentElement, level = 0) {
+        const folderItem = document.createElement("div");
+        folderItem.classList.add("folder-item");
+        folderItem.style.paddingLeft = `${level * 15}px`;
+        folderItem.textContent = folder.name;
 
-        // Folder content
-        div.innerHTML = `
-            <span class="folder-icon">📁</span>
-            <span class="folder-name">${folder.name}</span>
-            <div class="folder-actions">
-                <button class="edit-btn">✏️</button>
-                <button class="delete-btn">🗑️</button>
-            </div>
-        `;
+        parentElement.appendChild(folderItem);
 
-        // ✅ Click on folder → show marks table
-        div.addEventListener("click", (e) => {
-            e.stopPropagation();
-            selectedFolderId = folder.id;
-            renderMarksTable(folder.id);
-
-            // highlight active folder
-            document.querySelectorAll('.folder-item').forEach(el => el.classList.remove('active-folder'));
-            div.classList.add('active-folder');
-        });
-
-        // ✅ Edit folder
-        div.querySelector(".edit-btn").addEventListener("click", (e) => {
-            e.stopPropagation();
-            editFolder(folder.id, folder.name);
-        });
-
-        // ✅ Delete folder
-        div.querySelector(".delete-btn").addEventListener("click", (e) => {
-            e.stopPropagation();
-            deleteFolder(folder.id);
-        });
-
-        parentElement.appendChild(div);
-
-        // ✅ Render subfolders recursively
-        if (folder.subfolders && folder.subfolders.length > 0) {
-            const subDiv = document.createElement("div");
-            subDiv.className = "subfolder-container";
-            renderFolders(folder.subfolders, subDiv);
-            parentElement.appendChild(subDiv);
+        if (folder.subfolders && Array.isArray(folder.subfolders) && folder.subfolders.length > 0) {
+            folder.subfolders.forEach(sf => renderFolder(sf, parentElement, level + 1));
         }
-    });
+    }
+
+    folders.forEach(f => renderFolder(f, sidebar));
 }
 
 
