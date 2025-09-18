@@ -1830,25 +1830,43 @@ async function handleSignup() {
         showError('signup-error', error.message);
     }
 }
-async function handleLogin() {
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
-    
-    if (!username || !password) {
-        showError('login-error', 'Please fill in all fields');
-        return;
-    }
-    
+// ===============================
+// 🔑 HANDLE LOGIN
+// ===============================
+async function handleLogin(event) {
+    event.preventDefault();
+
+    const username = document.getElementById("login-username").value;
+    const password = document.getElementById("login-password").value;
+
     try {
-        const result = await authAPI.login(username, password);
-        localStorage.setItem('authToken', result.token);
-        currentUser = result.user;
-        showPage('app-page');
-        loadUserData();
-    } catch (error) {
-        showError('login-error', error.message);
+        // 🔹 Call backend login API
+        const res = await fetch(`${API_URL}/api/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (!res.ok) throw new Error("Login failed");
+
+        const data = await res.json();
+
+        // 🔹 Make token backend-compatible
+        // backend expects base64 encoded JSON with { userId }
+        const fakeToken = btoa(JSON.stringify({ userId: data.userId }));
+        localStorage.setItem("authToken", fakeToken);
+
+        alert("Login successful!");
+        showPage("app-page");
+
+        // 🔹 Load user data (folders + marks + stats + chart)
+        await loadUserData();
+    } catch (err) {
+        console.error("❌ Login error:", err);
+        alert("Login failed. Please check your username/password.");
     }
 }
+
 
 // ✅ Fixed createFolder function
 // ===============================
@@ -2134,6 +2152,9 @@ async function deleteAccount() {
 // ===============================
 // 📂 RENDER FOLDERS IN SIDEBAR
 // ===============================
+// ===============================
+// 📂 RENDER FOLDERS IN SIDEBAR
+// ===============================
 function renderFolders() {
     const sidebar = document.getElementById("folders-list");
     if (!sidebar) {
@@ -2163,6 +2184,7 @@ function renderFolders() {
 
     folders.forEach(f => renderFolder(f, sidebar));
 }
+
 
 
 
@@ -2570,6 +2592,9 @@ function findFolderById(folders, id) {
 // ===============================
 // 📊 UPDATE DASHBOARD + MARKS
 // ===============================
+// ===============================
+// 📊 UPDATE DASHBOARD + MARKS
+// ===============================
 function updateStats() {
     const tbody = document.getElementById('marks-table-body');
     tbody.innerHTML = '';
@@ -2649,6 +2674,10 @@ function updateStats() {
 }
 
 
+
+// ===============================
+// 📈 RENDER CHART
+// ===============================
 function renderChart() {
     const ctx = document.getElementById('progress-chart').getContext('2d');
     if (chart) chart.destroy();
@@ -2676,12 +2705,23 @@ function renderChart() {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,  // ✅ fixes chart height issue
-            plugins: { legend: { display: false } },
+            maintainAspectRatio: false,  // ✅ respect CSS height
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const mark = marks[context.dataIndex];
+                            return `${mark.marksObtained}/${mark.totalMarks} (${context.raw}%)`;
+                        }
+                    }
+                }
+            },
             scales: { y: { beginAtZero: true, max: 100 } }
         }
     });
 }
+
 
  
 
