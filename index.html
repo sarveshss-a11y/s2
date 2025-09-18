@@ -2633,146 +2633,73 @@ function findFolderById(folders, id) {
 }
 
 
-function updateStats() {
-    // Calculate total obtained marks and total marks across all subjects
-    let totalObtained = 0;
-    let totalMaximum = 0;
-    
-    marks.forEach(mark => {
-        totalObtained += mark.marksObtained;
-        totalMaximum += mark.totalMarks;
-    });
-    
-    // Update overall percentage
-    let overallPercentage = 0;
-    if (totalMaximum > 0) {
-        overallPercentage = (totalObtained / totalMaximum) * 100;
-    }
-    
-    // Update the overall percentage display with additional information
-    const overallPercentageElement = document.getElementById('overall-percentage');
-    overallPercentageElement.innerHTML = `
-        <div>${overallPercentage.toFixed(1)}%</div>
-        <div style="font-size: 0.8rem; margin-top: 5px;">
-            ${totalObtained} / ${totalMaximum}
-        </div>
-    `;
-    
-    // Update subject count
-    document.getElementById('total-subjects').textContent = marks.length;
-    
-    // Update highest and lowest percentages
-    if (marks.length > 0) {
-        const percentages = marks.map(mark => (mark.marksObtained / mark.totalMarks) * 100);
-        const highestPercentage = Math.max(...percentages);
-        const lowestPercentage = Math.min(...percentages);
-        
-        document.getElementById('highest-percentage').textContent = `${highestPercentage.toFixed(1)}%`;
-        document.getElementById('lowest-percentage').textContent = `${lowestPercentage.toFixed(1)}%`;
-    } else {
-        document.getElementById('highest-percentage').textContent = '0%';
-        document.getElementById('lowest-percentage').textContent = '0%';
-    }
-}
-
-function renderChart() {
-    // Reset canvas to avoid ghost layers
-    const chartContainer = document.querySelector('.chart-container');
-    chartContainer.innerHTML = '<canvas id="progress-chart"></canvas>';
-    const ctx = document.getElementById('progress-chart').getContext('2d');
-
-    if (chart) {
-        chart.destroy();
-    }
-
-    // Don't try to render a chart if there's no data
-    if (marks.length === 0) {
-        chartContainer.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666;">
-                <div style="font-size: 3rem; margin-bottom: 10px;">📊</div>
-                <p>No data available for chart</p>
-                <p style="font-size: 0.9rem;">Add some marks to see your progress</p>
-            </div>
-        `;
+function updateUserStats() {
+    if (!marks || marks.length === 0) {
+        document.getElementById('total-subjects').textContent = 0;
+        document.getElementById('overall-percentage').textContent = "0%";
+        document.getElementById('highest-percentage').textContent = "0%";
+        document.getElementById('lowest-percentage').textContent = "0%";
         return;
     }
 
-    const labels = marks.map(m => m.subject || 'Unknown Subject');
-    const data = marks.map(m => {
-        const obtained = m.marksObtained || 0;
-        const total = m.totalMarks || 1; // Avoid division by zero
-        return ((obtained / total) * 100).toFixed(2);
-    });
+    const totalSubjects = marks.length;
+    const totalMarks = marks.reduce((sum, m) => sum + (m.totalMarks || 0), 0);
+    const obtainedMarks = marks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
 
-    // Generate colors for each subject
-    const backgroundColors = [
-        '#4361ee', '#ef476f', '#06d6a0', '#ffd166', '#7209b7',
-        '#f72585', '#4cc9f0', '#560bad', '#b5179e', '#4895ef'
-    ];
+    const percentages = marks.map(m =>
+        m.totalMarks > 0 ? (m.marksObtained / m.totalMarks) * 100 : 0
+    );
 
-    // Repeat colors if we have more subjects than colors
-    const expandedColors = [];
-    for (let i = 0; i < labels.length; i++) {
-        expandedColors.push(backgroundColors[i % backgroundColors.length]);
-    }
+    const averagePercentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(2) : 0;
+    const highestPercentage = Math.max(...percentages).toFixed(2);
+    const lowestPercentage = Math.min(...percentages).toFixed(2);
 
-    // Adjust sizes based on chart type
-    let options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: chartType !== 'pie' && chartType !== 'doughnut',
-                position: 'top'
-            },
-            title: {
-                display: true,
-                text: 'Subject Performance'
-            }
-        }
-    };
+    // ✅ Update stats cards
+    document.getElementById('total-subjects').textContent = totalSubjects;
+    document.getElementById('overall-percentage').textContent = averagePercentage + "%";
+    document.getElementById('highest-percentage').textContent = highestPercentage + "%";
+    document.getElementById('lowest-percentage').textContent = lowestPercentage + "%";
 
-    if (chartType === 'bar' || chartType === 'line') {
-        options.scales = {
-            y: {
-                beginAtZero: true,
-                max: 100,
-                title: {
-                    display: true,
-                    text: 'Percentage (%)'
-                }
-            },
-            x: {
-                title: {
-                    display: true,
-                    text: 'Subjects'
-                }
-            }
-        };
-        chartContainer.style.height = '400px';
-    } else if (chartType === 'radar') {
-        chartContainer.style.height = '450px';
-    } else {
-        // For pie and doughnut charts
-        chartContainer.style.height = '350px';
-        options.plugins.legend.position = 'bottom';
-    }
+    // ✅ Update chart
+    renderChart();
+
+    // ✅ Re-render marks table with colored percentages
+    renderMarksTable();
+}
+
+function renderChart() {
+    const ctx = document.getElementById('progress-chart').getContext('2d');
+    if (chart) chart.destroy();
+
+    const labels = marks.map(m => m.subject);
+    const percentages = marks.map(m => 
+        m.totalMarks > 0 ? ((m.marksObtained / m.totalMarks) * 100).toFixed(2) : 0
+    );
 
     chart = new Chart(ctx, {
         type: chartType,
         data: {
             labels,
             datasets: [{
-                label: 'Percentage Score',
-                data,
-                backgroundColor: expandedColors,
-                borderColor: expandedColors.map(color => color.replace('0.8', '1')),
+                label: 'Percentage',
+                data: percentages,
+                backgroundColor: percentages.map(p =>
+                    p >= 75 ? 'rgba(6,214,160,0.7)' :
+                    p >= 40 ? 'rgba(255,209,102,0.7)' :
+                              'rgba(239,71,111,0.7)'
+                ),
+                borderColor: 'rgba(0,0,0,0.1)',
                 borderWidth: 1
             }]
         },
-        options
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, max: 100 } }
+        }
     });
 }
+ 
 
 
 
@@ -2898,56 +2825,83 @@ renderMarksTable();
 // Replace the renderMarksTable function with this:
 // ✅ Render marks into the table
 function renderMarksTable() {
-    const tableBody = document.getElementById("marks-table-body");
-    const emptyState = document.getElementById("empty-marks");
+    const tbody = document.getElementById('marks-table-body');
+    tbody.innerHTML = '';
 
-    tableBody.innerHTML = "";
-
-    let allMarks = [];
-
-    function collectMarks(folders) {
-        folders.forEach(folder => {
-            if (folder.marks && folder.marks.length > 0) {
-                folder.marks.forEach(mark => {
-                    allMarks.push({ ...mark, folderName: folder.name });
-                });
-            }
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                collectMarks(folder.subfolders);
-            }
-        });
-    }
-
-    collectMarks(folders);
-
-    if (allMarks.length === 0) {
-        emptyState.style.display = "block";
+    if (!marks || marks.length === 0) {
+        document.getElementById('empty-marks').style.display = 'block';
         return;
-    } else {
-        emptyState.style.display = "none";
     }
+    document.getElementById('empty-marks').style.display = 'none';
 
-    allMarks.forEach(mark => {
-        const percentage = mark.totalMarks > 0 
-            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2) 
+    marks.forEach(mark => {
+        const percentage = mark.totalMarks > 0
+            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2)
             : 0;
 
-        const row = document.createElement("tr");
+        let percentageClass = percentage >= 75 ? 'high' : (percentage >= 40 ? 'medium' : 'low');
+
+        const row = document.createElement('tr');
         row.innerHTML = `
             <td>${mark.subject}</td>
             <td>${mark.marksObtained}</td>
             <td>${mark.totalMarks}</td>
-            <td>${percentage}%</td>
-            <td>${mark.date || ""}</td>
-            <td>${mark.folderName}</td>
-            <td>
-                <button class="action-btn edit">✏️</button>
-                <button class="action-btn delete">🗑️</button>
+            <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
+            <td>${mark.date}</td>
+            <td>${getFolderName(mark.folderId)}</td>
+            <td class="action-buttons">
+                <button class="action-btn edit" data-id="${mark.id}" data-folder="${mark.folderId}">✏️</button>
+                <button class="action-btn delete" data-id="${mark.id}" data-folder="${mark.folderId}">🗑️</button>
             </td>
         `;
-        tableBody.appendChild(row);
+        tbody.appendChild(row);
+    });
+
+    // Edit / Delete listeners
+    document.querySelectorAll('.action-btn.edit').forEach(btn => {
+        btn.addEventListener('click', () => editMark(btn.dataset.folder, btn.dataset.id));
+    });
+    document.querySelectorAll('.action-btn.delete').forEach(btn => {
+        btn.addEventListener('click', () => deleteMark(btn.dataset.folder, btn.dataset.id));
     });
 }
+
+
+async function deleteMark(folderId, markId) {
+    if (!confirm('Delete this mark?')) return;
+    await dataAPI.deleteMarks(folderId, markId);
+    await loadUserData();
+}
+
+function editMark(folderId, markId) {
+    const mark = marks.find(m => m.id === markId);
+    if (!mark) return;
+
+    // Prefill form
+    document.getElementById('marks-folder').value = folderId;
+    document.getElementById('subject').value = mark.subject;
+    document.getElementById('marks-obtained').value = mark.marksObtained;
+    document.getElementById('total-marks').value = mark.totalMarks;
+    document.getElementById('marks-date').value = mark.date;
+
+    const btn = document.getElementById('add-marks-btn');
+    btn.textContent = 'Save Changes';
+
+    // Overwrite onclick temporarily
+    btn.onclick = async () => {
+        await dataAPI.updateMarks(folderId, markId, {
+            subject: document.getElementById('subject').value,
+            marksObtained: document.getElementById('marks-obtained').value,
+            totalMarks: document.getElementById('total-marks').value,
+            date: document.getElementById('marks-date').value,
+        });
+        btn.textContent = 'Add Marks';
+        btn.onclick = addMarks; // restore default
+        await loadUserData();
+    };
+}
+
+
 
 
 
