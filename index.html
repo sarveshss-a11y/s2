@@ -2131,11 +2131,19 @@ async function deleteAccount() {
 }
 
 // Replace the renderFolders function with this simplified version:
+// ===============================
+// 📂 RENDER FOLDERS IN SIDEBAR
+// ===============================
 function renderFolders() {
     const sidebar = document.getElementById("folders-list");
+    if (!sidebar) {
+        console.error("❌ Sidebar element #folders-list not found in DOM");
+        return;
+    }
+
     sidebar.innerHTML = "";
 
-    if (!folders || folders.length === 0) {
+    if (!folders || !Array.isArray(folders) || folders.length === 0) {
         sidebar.innerHTML = "<p>No folders available</p>";
         return;
     }
