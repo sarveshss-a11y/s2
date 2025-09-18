@@ -2582,40 +2582,47 @@ function setupPasswordToggles() {
 }
 // Add this function call at the end of your initApp function
 
-function renderMarksTable(folderId = "all") {
-    const tbody = document.getElementById("marks-table-body");
-    tbody.innerHTML = "";
+// 📊 Render Marks Table
+function renderMarksTable(folderId = 'all') {
+    const tbody = document.getElementById('marks-table-body');
+    tbody.innerHTML = '';
 
-    let marksToRender = [];
-
-    if (folderId === "all") {
-        marksToRender = marks;
-    } else {
-        marksToRender = marks.filter(m => m.folderId === folderId);
+    let filteredMarks = marks;
+    if (folderId !== 'all') {
+        filteredMarks = marks.filter(m => m.folderId == folderId); // ✅ safe comparison
     }
 
-    if (!marksToRender || marksToRender.length === 0) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="5">No marks found</td>`;
-        tbody.appendChild(tr);
+    if (filteredMarks.length === 0) {
+        document.getElementById('empty-marks').style.display = 'block';
         return;
+    } else {
+        document.getElementById('empty-marks').style.display = 'none';
     }
 
-    marksToRender.forEach(mark => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
+    filteredMarks.forEach(mark => {
+        const percentage = ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2);
+
+        // ✅ Lookup folder name
+        const folder = folders.find(f => f.id == mark.folderId);
+        const folderName = folder ? folder.name : "Unknown";
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
             <td>${mark.subject}</td>
             <td>${mark.marksObtained}</td>
             <td>${mark.totalMarks}</td>
-            <td>${mark.date || ""}</td>
+            <td>${percentage}%</td>
+            <td>${mark.date}</td>
+            <td>${folderName}</td>   <!-- ✅ show folder name -->
             <td>
-                <button onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
-                <button onclick="deleteMark('${mark.folderId}', '${mark.id}')">🗑️</button>
+                <button class="action-btn edit" onclick="editMarks('${mark.id}')">✏️</button>
+                <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">🗑️</button>
             </td>
         `;
-        tbody.appendChild(tr);
+        tbody.appendChild(row);
     });
 }
+
 
 
 // Add this helper function to find folder by ID
