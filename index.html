@@ -2307,35 +2307,30 @@ async function addMarks() {
     const date = document.getElementById('marks-date').value;
 
     if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("Please fill in all fields correctly");
+        alert("Please fill in all fields");
         return;
     }
 
     try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${backendUrl}/api/folders/${folderId}/marks`, {
-            method: "POST",
+        const response = await fetch(`${API_BASE_URL}/api/folders/${folderId}/marks`, {
+            method: 'POST',
             headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
             },
-            body: JSON.stringify({
-                subject,
-                marksObtained,
-                totalMarks,
-                date
-            })
+            body: JSON.stringify({ subject, marksObtained, totalMarks, date })
         });
 
-        if (!res.ok) throw new Error("Failed to save marks");
+        if (!response.ok) throw new Error('Failed to add marks');
 
         await loadUserData();
-        alert("Mark added successfully!");
+        alert("Marks added successfully!");
     } catch (error) {
-        console.error("Error adding mark:", error);
-        alert("Error adding mark: " + error.message);
+        console.error("Error adding marks:", error);
+        alert("Error adding marks: " + error.message);
     }
 }
+
 
 
 
