@@ -2877,7 +2877,7 @@ async function loadUserData() {
         populateFolderSelect(folders);
 
         // Render marks & stats
-        renderMarks();
+renderMarksTable();
         updateStats();
     } catch (error) {
         console.error("Error loading user data:", error);
@@ -2888,50 +2888,61 @@ async function loadUserData() {
 
 
 // Replace the renderMarksTable function with this:
-function renderMarksTable(folderId = 'all') {
-    const tableBody = document.getElementById('marks-table-body');
-    const emptyState = document.getElementById('empty-marks');
-    
-    // Clear the table
-    tableBody.innerHTML = '';
-    
-    let filteredMarks = marks;
-    if (folderId !== 'all') {
-        filteredMarks = marks.filter(mark => mark.folderId === folderId);
+// ✅ Render marks into the table
+function renderMarksTable() {
+    const tableBody = document.getElementById("marks-table-body");
+    const emptyState = document.getElementById("empty-marks");
+
+    tableBody.innerHTML = "";
+
+    let allMarks = [];
+
+    function collectMarks(folders) {
+        folders.forEach(folder => {
+            if (folder.marks && folder.marks.length > 0) {
+                folder.marks.forEach(mark => {
+                    allMarks.push({ ...mark, folderName: folder.name });
+                });
+            }
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                collectMarks(folder.subfolders);
+            }
+        });
     }
-    
-    if (filteredMarks.length === 0) {
-        emptyState.style.display = 'block';
-        tableBody.innerHTML = '';
+
+    collectMarks(folders);
+
+    if (allMarks.length === 0) {
+        emptyState.style.display = "block";
         return;
+    } else {
+        emptyState.style.display = "none";
     }
-    
-    emptyState.style.display = 'none';
-    
-    filteredMarks.forEach(mark => {
+
+    allMarks.forEach(mark => {
         const percentage = mark.totalMarks > 0 
-            ? (mark.marksObtained / mark.totalMarks) * 100 
+            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2) 
             : 0;
-            
-        const percentageClass = percentage >= 80 ? 'high' : 
-                              percentage >= 50 ? 'medium' : 'low';
-        
-        const row = document.createElement('tr');
+
+        const row = document.createElement("tr");
         row.innerHTML = `
-            <td>${mark.subject || 'N/A'}</td>
+            <td>${mark.subject}</td>
             <td>${mark.marksObtained}</td>
             <td>${mark.totalMarks}</td>
-            <td><span class="percentage ${percentageClass}">${percentage.toFixed(1)}%</span></td>
-            <td>${mark.date || 'N/A'}</td>
-            <td>${mark.folderName || 'Unknown'}</td>
-            <td class="action-buttons">
-                <button class="action-btn edit" onclick="editMarks('${mark.id}')">Edit</button>
-                <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">Delete</button>
+            <td>${percentage}%</td>
+            <td>${mark.date || ""}</td>
+            <td>${mark.folderName}</td>
+            <td>
+                <button class="action-btn edit">✏️</button>
+                <button class="action-btn delete">🗑️</button>
             </td>
         `;
         tableBody.appendChild(row);
     });
 }
+
+
+
 // Populate folder dropdowns (marks form + marks table filter)
 function populateFolderSelect(folders) {
     const marksFolderSelect = document.getElementById("marks-folder");
