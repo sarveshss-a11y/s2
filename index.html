@@ -2822,17 +2822,19 @@ function clearUI() {
 // ✅ Full updated loadUserData function
 async function loadUserData() {
     try {
+        // 🔹 Get user data from backend
         const userData = await dataAPI.getUserData();
 
+        // 🔹 Update globals
         currentUser = userData.username || "Unknown User";
         folders = userData.folders || [];
 
-        // 🔹 Flatten marks from all folders
+        // 🔹 Flatten marks from all folders + subfolders
         marks = [];
         function collectMarks(folder) {
             if (folder.marks && folder.marks.length > 0) {
                 folder.marks.forEach(m => {
-                    // keep folderId for lookup
+                    // Keep folderId reference
                     marks.push({ ...m, folderId: folder.id });
                 });
             }
@@ -2842,16 +2844,33 @@ async function loadUserData() {
         }
         folders.forEach(f => collectMarks(f));
 
+        // 🔹 Debug log
+        console.log("User:", currentUser);
+        console.log("Folders:", folders);
+        console.log("Marks:", marks);
+
         // 🔹 Update UI
-        document.getElementById('user-name').textContent = currentUser;
+        document.getElementById("user-name").textContent = currentUser;
         renderFolders();
         populateFolderSelect();
-        updateStats();   // render table + stats + chart
+        updateStats(); // renders table + stats + chart
     } catch (err) {
-        console.error("Error loading user data:", err);
-        alert("Could not load your data. Please login again.");
+        console.error("❌ Error loading user data:", err);
+
+        // More detailed feedback
+        if (err.response) {
+            console.error("Backend error:", err.response.status, err.response.statusText);
+            alert("Server error: " + err.response.statusText);
+        } else {
+            alert("Could not load your data. Please login again.");
+        }
+
+        // Force logout if token is bad
+        localStorage.removeItem("authToken");
+        showPage("login-page");
     }
 }
+
 
 
 
