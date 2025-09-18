@@ -2156,29 +2156,46 @@ function renderFolders(folderArray, parentElement = document.getElementById('fol
     }
 
     folderArray.forEach(folder => {
-        // Only render top-level folders (no subfolders)
-        if (!folder.parentId) {
-            const div = document.createElement("div");
-            div.className = "folder-item";
+        // ✅ Create folder item
+        const div = document.createElement("div");
+        div.className = "folder-item";
 
-            // Folder content
-            div.innerHTML = `
-                <span class="folder-icon">📁</span>
-                <span class="folder-name">${folder.name}</span>
-                <div class="folder-actions">
-                    <button class="edit-btn">✏️</button>
-                    <button class="delete-btn">🗑️</button>
-                </div>
-            `;
+        div.innerHTML = `
+            <span class="folder-icon">📁</span>
+            <span class="folder-name">${folder.name}</span>
+            <div class="folder-actions">
+                <button class="edit-btn">✏️</button>
+                <button class="delete-btn">🗑️</button>
+            </div>
+        `;
 
-            // Attach actions
-            div.querySelector(".edit-btn").addEventListener("click", () => editFolder(folder.id, folder.name));
-            div.querySelector(".delete-btn").addEventListener("click", () => deleteFolder(folder.id));
+        // ✅ Show marks in table when folder is clicked
+        div.addEventListener("click", () => {
+            renderMarksTable(folder.marks || []);
+        });
 
-            parentElement.appendChild(div);
+        // ✅ Attach edit + delete actions
+        div.querySelector(".edit-btn").addEventListener("click", (e) => {
+            e.stopPropagation(); // prevent triggering click folder
+            editFolder(folder.id, folder.name);
+        });
+        div.querySelector(".delete-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteFolder(folder.id);
+        });
+
+        parentElement.appendChild(div);
+
+        // ✅ Render subfolders if present
+        if (folder.subfolders && folder.subfolders.length > 0) {
+            const subDiv = document.createElement("div");
+            subDiv.className = "subfolder-container";
+            renderFolders(folder.subfolders, subDiv);
+            parentElement.appendChild(subDiv);
         }
     });
 }
+
 
 
 
@@ -2323,13 +2340,24 @@ async function addMarks() {
 
         if (!response.ok) throw new Error('Failed to add marks');
 
+        // reload all user data
         await loadUserData();
+
+        // ✅ Refresh the marks table for the folder where the mark was added
+        const updatedFolder = folders.find(f => f.id === folderId) 
+            || findFolderRecursively(folders, folderId);
+
+        if (updatedFolder) {
+            renderMarksTable(updatedFolder.marks || []);
+        }
+
         alert("Marks added successfully!");
     } catch (error) {
         console.error("Error adding marks:", error);
         alert("Error adding marks: " + error.message);
     }
 }
+
 
 
 
