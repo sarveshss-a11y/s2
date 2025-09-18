@@ -2333,38 +2333,30 @@ function renderFolderRecursive(folder, container) {
 async function addMarks() {
     const folderId = document.getElementById('marks-folder').value;
     const subject = document.getElementById('subject').value.trim();
-    const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
-    const totalMarks = parseFloat(document.getElementById('total-marks').value);
-    const date = document.getElementById('marks-date').value || new Date().toISOString().split('T')[0];
+    const marksObtained = document.getElementById('marks-obtained').value;
+    const totalMarks = document.getElementById('total-marks').value;
+    const date = document.getElementById('marks-date').value;
 
-    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("Please fill in all fields");
+    if (!folderId || !subject || !marksObtained || !totalMarks) {
+        alert("Please fill all fields and select a folder");
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/folders/${folderId}/marks`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            },
-            body: JSON.stringify({ subject, marksObtained, totalMarks, date })
+        await dataAPI.addMarks(folderId, {
+            subject,
+            marksObtained,
+            totalMarks,
+            date
         });
-
-        if (!response.ok) throw new Error("Failed to add mark");
-
         await loadUserData();
-
-        // render the marks for this folder
-        renderMarksTable(folderId);
-
-        alert("Mark added successfully!");
+        alert("Marks added successfully!");
     } catch (error) {
-        console.error("Error adding mark:", error);
-        alert("Error adding mark: " + error.message);
+        console.error("Error adding marks:", error);
+        alert("Error adding marks: " + error.message);
     }
 }
+
 
 
 
@@ -2865,37 +2857,38 @@ function clearUI() {
 // Replace the loadUserData function with this:
 // Data loading
 // Replace the loadUserData function with this:
+// ✅ Full updated loadUserData function
 async function loadUserData() {
     try {
+        // 1. Fetch user data from backend
         const data = await dataAPI.getUserData();
 
-        // Save folders and marks
+        // 2. Update global state
         folders = data.folders || [];
-        marks = [];
+        currentUser = { username: data.username };
 
-        // Flatten all marks into the global marks array
-        function collectMarks(folder) {
-            if (folder.marks && folder.marks.length > 0) {
-                folder.marks.forEach(m => marks.push({ ...m, folderId: folder.id }));
-            }
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                folder.subfolders.forEach(sub => collectMarks(sub));
-            }
-        }
-        folders.forEach(f => collectMarks(f));
+        // 3. Update UI with username
+        document.getElementById("user-name").textContent = currentUser.username || "User";
+        document.getElementById("user-avatar").textContent = currentUser.username ? currentUser.username[0].toUpperCase() : "U";
 
-        // Render UI
-        renderFolders(folders);
-        renderMarksTable(); // show all marks initially
-        populateFolderSelect("marks-folder");
-        populateFolderSelect("folder-select");
+        // 4. Render folders in sidebar
+        renderFolders(folders, document.getElementById("folder-list"));
 
+        // 5. Update folder dropdowns (marks form + filter dropdown)
+        populateFolderSelect(folders);
+
+        // 6. Render marks table & stats
+        renderMarks();
+
+        // 7. Update stats (overall percentage, highest, lowest, total subjects)
         updateStats();
-        renderChart();
+
     } catch (error) {
-        console.error("Failed to load user data:", error);
+        console.error("Error loading user data:", error);
+        alert("Failed to load user data: " + error.message);
     }
 }
+
 
 
 // Replace the renderMarksTable function with this:
@@ -2942,6 +2935,38 @@ function renderMarksTable(folderId = 'all') {
         `;
         tableBody.appendChild(row);
     });
+}
+// Populate folder dropdowns (marks form + marks table filter)
+function populateFolderSelect(folders) {
+    const marksFolderSelect = document.getElementById('marks-folder');
+    const filterFolderSelect = document.getElementById('folder-select');
+
+    if (!marksFolderSelect || !filterFolderSelect) return;
+
+    // Reset options
+    marksFolderSelect.innerHTML = '<option value="">Select a folder</option>';
+    filterFolderSelect.innerHTML = '<option value="all">All Folders</option>';
+
+    // Recursive helper to flatten folders
+    function addFolderOptions(folders, prefix = '') {
+        folders.forEach(folder => {
+            const option1 = document.createElement('option');
+            option1.value = folder.id;
+            option1.textContent = prefix + folder.name;
+            marksFolderSelect.appendChild(option1);
+
+            const option2 = document.createElement('option');
+            option2.value = folder.id;
+            option2.textContent = prefix + folder.name;
+            filterFolderSelect.appendChild(option2);
+
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                addFolderOptions(folder.subfolders, prefix + folder.name + " / ");
+            }
+        });
+    }
+
+    addFolderOptions(folders);
 }
 
 
