@@ -2860,34 +2860,30 @@ function clearUI() {
 // ✅ Full updated loadUserData function
 async function loadUserData() {
     try {
-        // 1. Fetch user data from backend
         const data = await dataAPI.getUserData();
 
-        // 2. Update global state
+        // Update global state
         folders = data.folders || [];
         currentUser = { username: data.username };
 
-        // 3. Update UI with username
+        // Update UI
         document.getElementById("user-name").textContent = currentUser.username || "User";
         document.getElementById("user-avatar").textContent = currentUser.username ? currentUser.username[0].toUpperCase() : "U";
 
-        // 4. Render folders in sidebar
+        // Render folders in sidebar
         renderFolders(folders, document.getElementById("folder-list"));
 
-        // 5. Update folder dropdowns (marks form + filter dropdown)
+        // ✅ Populate dropdowns with folder list
         populateFolderSelect(folders);
 
-        // 6. Render marks table & stats
+        // Render marks & stats
         renderMarks();
-
-        // 7. Update stats (overall percentage, highest, lowest, total subjects)
         updateStats();
-
     } catch (error) {
         console.error("Error loading user data:", error);
-        alert("Failed to load user data: " + error.message);
     }
 }
+
 
 
 
@@ -2938,36 +2934,33 @@ function renderMarksTable(folderId = 'all') {
 }
 // Populate folder dropdowns (marks form + marks table filter)
 function populateFolderSelect(folders) {
-    const marksFolderSelect = document.getElementById('marks-folder');
-    const filterFolderSelect = document.getElementById('folder-select');
+    const marksFolderSelect = document.getElementById("marks-folder");
+    const filterFolderSelect = document.getElementById("folder-select");
 
-    if (!marksFolderSelect || !filterFolderSelect) return;
+    if (!marksFolderSelect || !filterFolderSelect) {
+        console.error("Dropdown elements not found!");
+        return;
+    }
 
     // Reset options
     marksFolderSelect.innerHTML = '<option value="">Select a folder</option>';
     filterFolderSelect.innerHTML = '<option value="all">All Folders</option>';
 
-    // Recursive helper to flatten folders
-    function addFolderOptions(folders, prefix = '') {
-        folders.forEach(folder => {
-            const option1 = document.createElement('option');
-            option1.value = folder.id;
-            option1.textContent = prefix + folder.name;
-            marksFolderSelect.appendChild(option1);
+    folders.forEach(folder => {
+        console.log("Adding folder:", folder); // ✅ Debugging
 
-            const option2 = document.createElement('option');
-            option2.value = folder.id;
-            option2.textContent = prefix + folder.name;
-            filterFolderSelect.appendChild(option2);
+        let option1 = document.createElement("option");
+        option1.value = folder.id;
+        option1.textContent = folder.name;
+        marksFolderSelect.appendChild(option1);
 
-            if (folder.subfolders && folder.subfolders.length > 0) {
-                addFolderOptions(folder.subfolders, prefix + folder.name + " / ");
-            }
-        });
-    }
-
-    addFolderOptions(folders);
+        let option2 = document.createElement("option");
+        option2.value = folder.id;
+        option2.textContent = folder.name;
+        filterFolderSelect.appendChild(option2);
+    });
 }
+
 
 
 // Add this function to help debug
