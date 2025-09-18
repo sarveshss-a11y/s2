@@ -2820,56 +2820,61 @@ function clearUI() {
 // Data loading
 // Replace the loadUserData function with this:
 // ✅ Full updated loadUserData function
+// ===============================
+// 🔑 LOAD USER DATA FROM BACKEND
+// ===============================
 async function loadUserData() {
     try {
-        // 🔹 Get user data from backend
+        // 🔹 Call backend
         const userData = await dataAPI.getUserData();
 
         // 🔹 Update globals
         currentUser = userData.username || "Unknown User";
-        folders = userData.folders || [];
+        folders = Array.isArray(userData.folders) ? userData.folders : [];
 
-        // 🔹 Flatten marks from all folders + subfolders
+        // 🔹 Flatten marks
         marks = [];
         function collectMarks(folder) {
-            if (folder.marks && folder.marks.length > 0) {
+            if (folder.marks && Array.isArray(folder.marks)) {
                 folder.marks.forEach(m => {
-                    // Keep folderId reference
                     marks.push({ ...m, folderId: folder.id });
                 });
             }
-            if (folder.subfolders && folder.subfolders.length > 0) {
+            if (folder.subfolders && Array.isArray(folder.subfolders)) {
                 folder.subfolders.forEach(sf => collectMarks(sf));
             }
         }
         folders.forEach(f => collectMarks(f));
 
-        // 🔹 Debug log
-        console.log("User:", currentUser);
-        console.log("Folders:", folders);
-        console.log("Marks:", marks);
+        // 🔹 Debug logs
+        console.log("✅ User loaded:", currentUser);
+        console.log("📂 Folders:", folders);
+        console.log("📝 Marks:", marks);
 
         // 🔹 Update UI
         document.getElementById("user-name").textContent = currentUser;
         renderFolders();
         populateFolderSelect();
-        updateStats(); // renders table + stats + chart
+        updateStats(); // table + stats + chart
     } catch (err) {
         console.error("❌ Error loading user data:", err);
 
-        // More detailed feedback
+        // Extra debug info
         if (err.response) {
-            console.error("Backend error:", err.response.status, err.response.statusText);
+            console.error("Server responded with:", err.response.status, err.response.statusText);
             alert("Server error: " + err.response.statusText);
+        } else if (err.message) {
+            alert("Error: " + err.message);
         } else {
             alert("Could not load your data. Please login again.");
         }
 
-        // Force logout if token is bad
+        // Force logout if token issue
         localStorage.removeItem("authToken");
         showPage("login-page");
     }
 }
+
 
 
 
@@ -2974,33 +2979,41 @@ function editMark(folderId, markId) {
 
 
 // Populate folder dropdowns (marks form + marks table filter)
-function populateFolderSelect(folders) {
-    const marksFolderSelect = document.getElementById("marks-folder");
-    const filterFolderSelect = document.getElementById("folder-select");
+// ===============================
+// 📂 POPULATE FOLDER SELECT DROPDOWN
+// ===============================
+function populateFolderSelect() {
+    const select = document.getElementById("marks-folder");
+    select.innerHTML = ""; // Clear old options
 
-    if (!marksFolderSelect || !filterFolderSelect) {
-        console.error("Dropdown elements not found!");
+    // 🔹 Safety check: make sure folders is always an array
+    if (!folders || !Array.isArray(folders) || folders.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No folders available";
+        select.appendChild(option);
         return;
     }
 
-    // Reset options
-    marksFolderSelect.innerHTML = '<option value="">Select a folder</option>';
-    filterFolderSelect.innerHTML = '<option value="all">All Folders</option>';
-
+    // 🔹 Add each folder
     folders.forEach(folder => {
-        console.log("Adding folder:", folder); // ✅ Debugging
+        const option = document.createElement("option");
+        option.value = folder.id;
+        option.textContent = folder.name;
+        select.appendChild(option);
 
-        let option1 = document.createElement("option");
-        option1.value = folder.id;
-        option1.textContent = folder.name;
-        marksFolderSelect.appendChild(option1);
-
-        let option2 = document.createElement("option");
-        option2.value = folder.id;
-        option2.textContent = folder.name;
-        filterFolderSelect.appendChild(option2);
+        // 🔹 Add subfolders (nested under folder)
+        if (folder.subfolders && Array.isArray(folder.subfolders) && folder.subfolders.length > 0) {
+            folder.subfolders.forEach(sf => {
+                const sfOption = document.createElement("option");
+                sfOption.value = sf.id;
+                sfOption.textContent = `-- ${sf.name}`;
+                select.appendChild(sfOption);
+            });
+        }
     });
 }
+
 
 
 
