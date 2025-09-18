@@ -2330,41 +2330,49 @@ function renderFolderRecursive(folder, container) {
 }
 
 // Marks functions
+// ✅ Add marks to database
+// Add marks from form to database
 async function addMarks() {
-    const folderId = document.getElementById('marks-folder').value;
-    const subject = document.getElementById('subject').value.trim();
-    const marksObtained = document.getElementById('marks-obtained').value;
-    const totalMarks = document.getElementById('total-marks').value;
-    const date = document.getElementById('marks-date').value;
+    const folderId = document.getElementById("marks-folder").value;
+    const subject = document.getElementById("subject").value.trim();
+    const marksObtained = document.getElementById("marks-obtained").value;
+    const totalMarks = document.getElementById("total-marks").value;
+    const date = document.getElementById("marks-date").value;
 
     if (!folderId || !subject || !marksObtained || !totalMarks) {
         alert("Please fill all fields and select a folder");
         return;
     }
 
+    const payload = {
+        subject,
+        marksObtained: parseFloat(marksObtained),
+        totalMarks: parseFloat(totalMarks),
+        date
+    };
+
+    console.log("➡️ Sending marks payload:", payload); // ✅ Debug log
+
     try {
-        await dataAPI.addMarks(folderId, {
-            subject,
-            marksObtained,
-            totalMarks,
-            date
-        });
+        await dataAPI.addMarks(folderId, payload);
+
+        // Refresh UI
         await loadUserData();
+
+        // Reset form
+        document.getElementById("subject").value = "";
+        document.getElementById("marks-obtained").value = "";
+        document.getElementById("total-marks").value = "";
+        document.getElementById("marks-date").value = "";
+
         alert("Marks added successfully!");
     } catch (error) {
-        console.error("Error adding marks:", error);
+        console.error("❌ Error adding marks:", error);
         alert("Error adding marks: " + error.message);
     }
 }
 
 
-
-
-
-
-
-
-// Replace the openAddMarksModal function
 
 
 // Add this event listener to your setupEventListeners function
