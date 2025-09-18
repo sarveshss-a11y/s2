@@ -2027,68 +2027,66 @@ function findFolderById(id, folderList) {
 // Marks functions
 
 
-// ✏️ Edit Marks
-async function editMarks(markId) {
+function editMarks(markId) {
     const mark = marks.find(m => m.id === markId);
     if (!mark) return;
-
-    const newSubject = prompt("Enter new subject name:", mark.subject);
+    
+    const newSubject = prompt('Enter new subject name:', mark.subject);
     if (!newSubject) return;
-
-    const newMarksObtained = parseFloat(prompt("Enter new marks obtained:", mark.marksObtained));
+    
+    const newMarksObtained = parseFloat(prompt('Enter new marks obtained:', mark.marksObtained));
     if (isNaN(newMarksObtained)) return;
-
-    const newTotalMarks = parseFloat(prompt("Enter new total marks:", mark.totalMarks));
+    
+    const newTotalMarks = parseFloat(prompt('Enter new total marks:', mark.totalMarks));
     if (isNaN(newTotalMarks)) return;
-
-    const newDate = prompt("Enter new date (YYYY-MM-DD):", mark.date);
+    
+    const newDate = prompt('Enter new date (YYYY-MM-DD):', mark.date);
     if (!newDate) return;
-
+    
     if (newMarksObtained > newTotalMarks) {
-        alert("⚠️ Marks obtained cannot be greater than total marks.");
+        alert('Marks obtained cannot be greater than total marks');
         return;
     }
-
-    try {
-        const updatedMark = await dataAPI.updateMarks(mark.folderId, markId, {
-            subject: newSubject,
-            marksObtained: newMarksObtained,
-            totalMarks: newTotalMarks,
-            date: newDate
-        });
-
-        // Update in local state
-        const idx = marks.findIndex(m => m.id === markId);
-        if (idx !== -1) marks[idx] = updatedMark;
-
-        renderMarksTable(document.getElementById("folder-select").value);
-    } catch (err) {
-        console.error("❌ Error updating marks:", err);
-        alert("Failed to update marks. Please try again.");
-    }
+    
+    dataAPI.updateMarks(mark.folderId, markId, {
+        subject: newSubject,
+        marksObtained: newMarksObtained,
+        totalMarks: newTotalMarks,
+        date: newDate
+    })
+    .then(updatedMark => {
+        const index = marks.findIndex(m => m.id === markId);
+        if (index !== -1) {
+            marks[index] = updatedMark;
+        }
+        renderMarksTable();
+        updateStats();
+        renderChart();
+    })
+    .catch(error => {
+        alert('Error updating marks: ' + error.message);
+    });
 }
 
-
-// 🗑️ Delete Marks
-async function deleteMarks(markId) {
+function deleteMarks(markId) {
+    if (!confirm('Are you sure you want to delete these marks?')) {
+        return;
+    }
+    
     const mark = marks.find(m => m.id === markId);
     if (!mark) return;
-
-    if (!confirm("Delete this mark?")) return;
-
-    try {
-        await dataAPI.deleteMarks(mark.folderId, markId);
-
-        // Remove from local state
-        marks = marks.filter(m => m.id !== markId);
-
-        renderMarksTable(document.getElementById("folder-select").value);
-    } catch (err) {
-        console.error("❌ Error deleting marks:", err);
-        alert("Failed to delete mark. Please try again.");
-    }
+    
+    dataAPI.deleteMarks(mark.folderId, markId)
+        .then(() => {
+            marks = marks.filter(m => m.id !== markId);
+            renderMarksTable();
+            updateStats();
+            renderChart();
+        })
+        .catch(error => {
+            alert('Error deleting marks: ' + error.message);
+        });
 }
-
 
 function filterMarksByFolder() {
     const folderId = document.getElementById('folder-select').value;
@@ -2353,24 +2351,23 @@ function renderFolderRecursive(folder, container) {
 // Marks functions
 // ✅ Add marks to database
 // Add marks from form to database
-// ➕ Add Marks
 async function addMarks() {
     const folderId = document.getElementById('marks-folder').value;
-    const subject = document.getElementById('subject').value.trim();
+    const subject = document.getElementById('subject').value;
     const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
     const totalMarks = parseFloat(document.getElementById('total-marks').value);
     const date = document.getElementById('marks-date').value;
 
-    if (!folderId) {
-        alert("⚠️ Please select a folder.");
+    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
+        alert("Please fill all fields correctly.");
         return;
     }
 
     await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
+    
+    // ✅ Refresh UI
     await loadUserData();
 }
-
-
 
 
 
@@ -2585,48 +2582,40 @@ function setupPasswordToggles() {
 }
 // Add this function call at the end of your initApp function
 
-// 📊 Render Marks Table (filtered by folder)
-function renderMarksTable(folderId = 'all') {
-    const tbody = document.getElementById('marks-table-body');
-    tbody.innerHTML = '';
+function renderMarksTable(folderId = "all") {
+    const tbody = document.getElementById("marks-table-body");
+    tbody.innerHTML = "";
 
-    let filteredMarks = marks;
-    if (folderId !== 'all') {
-        filteredMarks = marks.filter(m => m.folderId === folderId);
-    }
+    let marksToRender = [];
 
-    if (filteredMarks.length === 0) {
-        document.getElementById('empty-marks').style.display = 'block';
-        return;
+    if (folderId === "all") {
+        marksToRender = marks;
     } else {
-        document.getElementById('empty-marks').style.display = 'none';
+        marksToRender = marks.filter(m => m.folderId === folderId);
     }
 
-    filteredMarks.forEach(mark => {
-        const percentage = ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2);
+    if (!marksToRender || marksToRender.length === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="5">No marks found</td>`;
+        tbody.appendChild(tr);
+        return;
+    }
 
-        // ✅ Find the folder for this mark
-        const folder = folders.find(f => f.id == mark.folderId);
-        const folderName = folder ? folder.name : "❌ Unknown Folder";
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
+    marksToRender.forEach(mark => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
             <td>${mark.subject}</td>
             <td>${mark.marksObtained}</td>
             <td>${mark.totalMarks}</td>
-            <td>${percentage}%</td>
-            <td>${mark.date}</td>
-            <td>${folderName}</td>
+            <td>${mark.date || ""}</td>
             <td>
-                <button class="action-btn edit" onclick="editMarks('${mark.id}')">✏️</button>
-                <button class="action-btn delete" onclick="deleteMarks('${mark.id}')">🗑️</button>
+                <button onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
+                <button onclick="deleteMark('${mark.folderId}', '${mark.id}')">🗑️</button>
             </td>
         `;
-        tbody.appendChild(row);
+        tbody.appendChild(tr);
     });
 }
-
-
 
 
 // Add this helper function to find folder by ID
