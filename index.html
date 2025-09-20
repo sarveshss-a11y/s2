@@ -2016,28 +2016,25 @@ function checkAuthStatus() {
 // Folder functions
 // Replace the createFolder function with this:
 async function createFolder() {
-    const folderNameInput = document.getElementById('folderName');
-    const name = folderNameInput.value.trim();
-    
-    if (!name) {
-        alert('Please enter a folder name');
-        return;
+  const folderNameInput = document.getElementById('folderName');
+  const name = folderNameInput ? folderNameInput.value.trim() : '';
+  if (!name) { alert('Please enter a folder name'); return; }
+
+  try {
+    const res = await dataAPI.createFolder(name);
+    // server should return { folder: {...} } — but reload to be safe
+    await loadUserData();
+
+    // if server returned folder id, auto-select it in marks form
+    if (res && res.folder && document.getElementById('marks-folder')) {
+      document.getElementById('marks-folder').value = res.folder.id;
     }
-    
-    try {
-        const result = await dataAPI.createFolder(name);
-        
-        // Clear the input field
-        folderNameInput.value = '';
-        
-        // Refresh folders from server
-        await loadUserData();
-        
-        alert('Folder created successfully!');
-    } catch (error) {
-        console.error('Error creating folder:', error);
-        alert('Error creating folder: ' + error.message);
-    }
+
+    folderNameInput.value = '';
+  } catch (err) {
+    console.error('Error creating folder:', err);
+    alert('Error creating folder: ' + (err.message || err));
+  }
 }
 
 function checkToken() {
@@ -2082,19 +2079,34 @@ function editFolder(folderId) {
 }
 
 // Recursive helper to find a folder by ID
-function findFolderById(id, folderList) {
-    for (const f of folderList) {
-        if (f.id === id) return f;
-        if (f.subfolders && f.subfolders.length > 0) {
-            const found = findFolderById(id, f.subfolders);
-            if (found) return found;
-        }
+function findFolderById(id, list = folders) {
+  for (const f of list) {
+    if (f.id === id) return f;
+    if (f.subfolders && f.subfolders.length > 0) {
+      const found = findFolderById(id, f.subfolders);
+      if (found) return found;
     }
-    return null;
+  }
+  return null;
 }
 
 
-
+function collectAllMarks(folderList) {
+  const out = [];
+  function recurse(list) {
+    for (const f of list) {
+      if (Array.isArray(f.marks)) {
+        f.marks.forEach(m => {
+          // ensure mark has folderId
+          if (!m.folderId) m.folderId = f.id;
+          out.push(m);
+        });
+      }
+      if (f.subfolders && f.subfolders.length) recurse(f.subfolders);
+    }
+  }
+  recurse(folderList || []);
+  return out;
 
 // Marks functions
 
@@ -2139,6 +2151,29 @@ function editMarks(markId) {
         alert('Error updating marks: ' + error.message);
     });
 }
+
+// Get all marks belonging to a specific folder (and its subfolders)
+function getMarksFromFolder(folder) {
+  if (!folder) return [];
+
+  const out = [];
+
+  function recurse(f) {
+    if (Array.isArray(f.marks)) {
+      f.marks.forEach(m => {
+        if (!m.folderId) m.folderId = f.id;
+        out.push(m);
+      });
+    }
+    if (f.subfolders && f.subfolders.length) {
+      f.subfolders.forEach(recurse);
+    }
+  }
+
+  recurse(folder);
+  return out;
+}
+
 
 function deleteMarks(markId) {
     if (!confirm('Are you sure you want to delete these marks?')) {
@@ -2255,49 +2290,61 @@ async function deleteAccount() {
 // ===============================
 // 📂 RENDER FOLDERS IN SIDEBAR
 // ===============================
-function renderFolders() {
-    const sidebar = document.getElementById("folders-list");
-    if (!sidebar) {
-        console.error("❌ Sidebar element #folders-list not found in DOM");
-        return;
-    }
+    function renderFolders() {
+  const sidebar = document.getElementById('folders-list');
+  if (!sidebar) return;
+  sidebar.innerHTML = '';
 
-    sidebar.innerHTML = "";
+  if (!folders || !folders.length) {
+    sidebar.innerHTML = '<p class="no-folders-message">No folders available</p>';
+    return;
+  }
 
-    if (!folders || !Array.isArray(folders) || folders.length === 0) {
-        sidebar.innerHTML = "<p>No folders available</p>";
-        return;
-    }
+  function render(folder, parentEl, level = 0) {
+    const item = document.createElement('div');
+    item.className = 'folder-item';
+    item.style.paddingLeft = `${level * 12}px`;
 
-    function renderFolder(folder, parentElement, level = 0) {
-        const folderItem = document.createElement("div");
-        folderItem.classList.add("folder-item");
-        folderItem.style.paddingLeft = `${level * 15}px`;
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = folder.name;
+    item.appendChild(nameSpan);
 
-        folderItem.innerHTML = `
-            <span>${folder.name}</span>
-            <div class="folder-actions">
-                <button class="edit-folder" data-id="${folder.id}">✏️</button>
-                <button class="delete-folder" data-id="${folder.id}">🗑️</button>
-            </div>
-        `;
+    const actions = document.createElement('div');
+    actions.className = 'folder-actions';
 
-        parentElement.appendChild(folderItem);
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-folder';
+    editBtn.textContent = '✏️';
+    editBtn.addEventListener('click', (e) => { e.stopPropagation(); editFolder(folder.id); });
 
-        if (folder.subfolders && Array.isArray(folder.subfolders) && folder.subfolders.length > 0) {
-            folder.subfolders.forEach(sf => renderFolder(sf, parentElement, level + 1));
-        }
-    }
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-folder';
+    delBtn.textContent = '🗑️';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteFolder(folder.id); });
 
-    folders.forEach(f => renderFolder(f, sidebar));
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+    item.appendChild(actions);
 
-    // 🔹 Attach edit/delete events
-    document.querySelectorAll(".edit-folder").forEach(btn => {
-        btn.addEventListener("click", () => editFolder(btn.dataset.id));
+    // click to select folder (for UI highlight if desired)
+    item.addEventListener('click', () => {
+      selectedFolderId = folder.id;
+      // optionally highlight; also select filter
+      const allFolderEls = sidebar.querySelectorAll('.folder-item');
+      allFolderEls.forEach(el => el.classList.remove('active-folder'));
+      item.classList.add('active-folder');
+      document.getElementById('folder-select').value = folder.id;
+      renderMarksTable(folder.id);
     });
-    document.querySelectorAll(".delete-folder").forEach(btn => {
-        btn.addEventListener("click", () => deleteFolder(btn.dataset.id));
-    });
+
+    parentEl.appendChild(item);
+
+    if (folder.subfolders && folder.subfolders.length) {
+      folder.subfolders.forEach(sf => render(sf, parentEl, level + 1));
+    }
+  }
+
+  folders.forEach(f => render(f, sidebar, 0));
 }
 
 
@@ -2425,21 +2472,29 @@ function renderFolderRecursive(folder, container) {
 // ✅ Add marks to database
 // Add marks from form to database
 async function addMarks() {
-    const folderId = document.getElementById('marks-folder').value;
-    const subject = document.getElementById('subject').value;
-    const marksObtained = parseFloat(document.getElementById('marks-obtained').value);
-    const totalMarks = parseFloat(document.getElementById('total-marks').value);
-    const date = document.getElementById('marks-date').value;
+  const folderId = document.getElementById('marks-folder').value;
+  const subject = document.getElementById('subject').value.trim();
+  const marksObtained = Number(document.getElementById('marks-obtained').value);
+  const totalMarks = Number(document.getElementById('total-marks').value);
+  const date = document.getElementById('marks-date').value || '';
 
-    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
-        alert("Please fill all fields correctly.");
-        return;
-    }
+  if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
+    alert('Please fill all fields correctly.');
+    return;
+  }
 
+  try {
     await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
-    
-    // ✅ Refresh UI
+    // clear form
+    document.getElementById('subject').value = '';
+    document.getElementById('marks-obtained').value = '';
+    document.getElementById('total-marks').value = '';
+    // refresh everything from server (keeps server as source-of-truth)
     await loadUserData();
+  } catch (err) {
+    console.error('Error adding marks:', err);
+    alert('Failed to add marks: ' + (err.message || err));
+  }
 }
 
 
@@ -2711,82 +2766,24 @@ function findFolderById(folders, id) {
 // 📊 UPDATE DASHBOARD + MARKS
 // ===============================
 function updateStats() {
-    const tbody = document.getElementById('marks-table-body');
-    tbody.innerHTML = '';
+  // use global marks array
+  const totalSubjects = marks.length;
+  const totalMarks = marks.reduce((s, m) => s + (Number(m.totalMarks) || 0), 0);
+  const obtained = marks.reduce((s, m) => s + (Number(m.marksObtained) || 0), 0);
+  const percentages = marks.map(m => m.totalMarks > 0 ? (m.marksObtained / m.totalMarks) * 100 : 0);
 
-    if (!marks || marks.length === 0) {
-        document.getElementById('total-subjects').textContent = 0;
-        document.getElementById('overall-percentage').textContent = "0%";
-        document.getElementById('highest-percentage').textContent = "0%";
-        document.getElementById('lowest-percentage').textContent = "0%";
-        document.getElementById('total-marks-card').textContent = 0;
-        document.getElementById('obtained-marks-card').textContent = 0;
-        document.getElementById('empty-marks').style.display = 'block';
-        if (chart) chart.destroy();
-        return;
-    }
-    document.getElementById('empty-marks').style.display = 'none';
+  const avg = totalMarks ? ((obtained / totalMarks) * 100).toFixed(2) : '0.00';
+  const highest = percentages.length ? Math.max(...percentages).toFixed(2) : '0.00';
+  const lowest = percentages.length ? Math.min(...percentages).toFixed(2) : '0.00';
 
-    // --- Calculations ---
-    const totalSubjects = marks.length;
-    const totalMarks = marks.reduce((sum, m) => sum + (m.totalMarks || 0), 0);
-    const obtainedMarks = marks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
-
-    const percentages = marks.map(m =>
-        m.totalMarks > 0 ? (m.marksObtained / m.totalMarks) * 100 : 0
-    );
-
-    const averagePercentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(2) : 0;
-    const highestPercentage = Math.max(...percentages).toFixed(2);
-    const lowestPercentage = Math.min(...percentages).toFixed(2);
-
-    // --- Update stats cards ---
-    document.getElementById('total-subjects').textContent = totalSubjects;
-    document.getElementById('overall-percentage').textContent = averagePercentage + "%";
-    document.getElementById('highest-percentage').textContent = highestPercentage + "%";
-    document.getElementById('lowest-percentage').textContent = lowestPercentage + "%";
-    document.getElementById('total-marks-card').textContent = totalMarks;
-    document.getElementById('obtained-marks-card').textContent = obtainedMarks;
-
-    // --- Render Marks Table ---
-    marks.forEach(mark => {
-        const percentage = mark.totalMarks > 0
-            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2)
-            : 0;
-
-        let percentageClass = percentage >= 75 ? 'high' : (percentage >= 40 ? 'medium' : 'low');
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${mark.subject}</td>
-            <td>${mark.marksObtained}</td>
-            <td>${mark.totalMarks}</td>
-            <td>
-                <span class="percentage ${percentageClass}">
-                    ${mark.marksObtained}/${mark.totalMarks} (${percentage}%)
-                </span>
-            </td>
-            <td>${mark.date}</td>
-            <td>${getFolderName(mark.folderId)}</td>
-            <td class="action-buttons">
-                <button class="action-btn edit" data-id="${mark.id}" data-folder="${mark.folderId}">✏️</button>
-                <button class="action-btn delete" data-id="${mark.id}" data-folder="${mark.folderId}">🗑️</button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-
-    // --- Edit/Delete event listeners ---
-    document.querySelectorAll('.action-btn.edit').forEach(btn => {
-        btn.addEventListener('click', () => editMark(btn.dataset.folder, btn.dataset.id));
-    });
-    document.querySelectorAll('.action-btn.delete').forEach(btn => {
-        btn.addEventListener('click', () => deleteMark(btn.dataset.folder, btn.dataset.id));
-    });
-
-    // --- Update Chart ---
-    renderChart();
+  document.getElementById('total-subjects').textContent = totalSubjects;
+  document.getElementById('overall-percentage').textContent = `${avg}%`;
+  document.getElementById('highest-percentage').textContent = `${highest}%`;
+  document.getElementById('lowest-percentage').textContent = `${lowest}%`;
+  document.getElementById('total-marks-card').textContent = totalMarks;
+  document.getElementById('obtained-marks-card').textContent = obtained;
 }
+
 
 
 
@@ -2962,14 +2959,44 @@ function clearUI() {
 // 📂 LOAD USER DATA
 // ===============================
 async function loadUserData() {
-    try {
-        const data = await dataAPI.getUserData();
-        folders = data.folders || [];
-        renderMarksTable(folders);
-        updateFolderDropdown();  // 🔥 refresh folder dropdown
-    } catch (err) {
-        console.error("Error loading user data:", err);
+  try {
+    // use dataAPI wrapper (it adds auth header)
+    const data = await dataAPI.getUserData();
+
+    // normalize user object
+    currentUser = data.user || { username: data.username || data.user?.username || 'User' };
+
+    // normalize folders
+    folders = Array.isArray(data.folders) ? data.folders : (data.folders || []);
+
+    // ensure each folder has subfolders array to avoid runtime checks elsewhere
+    function ensureSubfolders(list) {
+      list.forEach(f => {
+        if (!f.subfolders) f.subfolders = [];
+        ensureSubfolders(f.subfolders);
+      });
     }
+    ensureSubfolders(folders);
+
+    // collect marks array for quick global stats and lookups
+    marks = collectAllMarks(folders);
+
+    // update UI
+    document.getElementById('user-name').textContent = currentUser.username || 'User';
+    document.getElementById('user-avatar').textContent = (currentUser.username || 'U').charAt(0).toUpperCase();
+
+    renderFolders();
+    populateFolderSelect();
+    renderMarksTable(selectedFolderId || 'all');
+    updateStats();
+    renderChart(selectedFolderId || 'all');
+
+    // optional: update api status
+    checkApiConnection();
+  } catch (err) {
+    console.error('Error loading user data:', err);
+    showError('login-error', err.message || 'Failed to load user data.');
+  }
 }
 
 
@@ -2996,53 +3023,45 @@ function getFolderName(folderId) {
 
 // Replace the renderMarksTable function with this:
 // ✅ Render marks into the table
-function renderMarksTable(selectedFolderId = "all") {
-    const tableBody = document.getElementById("marks-table-body");
-    tableBody.innerHTML = "";
+function renderMarksTable(selectedFolderId = 'all') {
+  const tableBody = document.getElementById('marks-table-body');
+  if (!tableBody) return;
+  tableBody.innerHTML = '';
 
-    let marksToShow = [];
+  let marksToShow = [];
+  if (selectedFolderId === 'all' || !selectedFolderId) {
+    marksToShow = marks.slice(); // global marks collected by loadUserData
+  } else {
+    const folder = findFolderById(selectedFolderId, folders);
+    marksToShow = getMarksFromFolder(folder);
+  }
 
-    if (selectedFolderId === "all") {
-        // show all marks from all folders
-        marksToShow = folders.flatMap(f => f.marks || []);
-    } else {
-        // show marks from only the selected folder
-        const folder = folders.find(f => f.id === selectedFolderId);
-        marksToShow = folder ? folder.marks : [];
-    }
+  if (!marksToShow || marksToShow.length === 0) {
+    document.getElementById('empty-marks').style.display = 'block';
+    return;
+  }
+  document.getElementById('empty-marks').style.display = 'none';
 
-    if (marksToShow.length === 0) {
-        document.getElementById("empty-marks").style.display = "block";
-        return;
-    }
-    document.getElementById("empty-marks").style.display = "none";
+  marksToShow.forEach(mark => {
+    const tr = document.createElement('tr');
+    const percentage = mark.totalMarks > 0 ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2) : '0.00';
+    const folderObj = findFolderById(mark.folderId, folders);
+    const folderName = folderObj ? folderObj.name : 'Unknown';
 
-    marksToShow.forEach(mark => {
-        const tr = document.createElement("tr");
-
-        // calculate percentage
-        const percentage = mark.totalMarks > 0 
-            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2) 
-            : "0.00";
-
-        // ✅ convert folderId → folder name
-        const folder = folders.find(f => f.id === mark.folderId);
-        const folderName = folder ? folder.name : "Unknown";
-
-        tr.innerHTML = `
-            <td>${mark.subject}</td>
-            <td>${mark.marksObtained}</td>
-            <td>${mark.totalMarks}</td>
-            <td>${percentage}%</td>
-            <td>${mark.date}</td>
-            <td>${folderName}</td>
-            <td>
-                <button class="action-btn edit" onclick="editMark('${mark.id}', '${mark.folderId}')">✏️</button>
-                <button class="action-btn delete" onclick="deleteMark('${mark.id}', '${mark.folderId}')">🗑️</button>
-            </td>
-        `;
-        tableBody.appendChild(tr);
-    });
+    tr.innerHTML = `
+      <td>${mark.subject}</td>
+      <td>${mark.marksObtained}</td>
+      <td>${mark.totalMarks}</td>
+      <td>${percentage}%</td>
+      <td>${mark.date || ''}</td>
+      <td>${folderName}</td>
+      <td>
+        <button class="action-btn edit" onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
+        <button class="action-btn delete" onclick="deleteMark('${mark.folderId}', '${mark.id}')">🗑️</button>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
 }
 
 
@@ -3090,35 +3109,41 @@ function editMark(folderId, markId) {
 // 📂 POPULATE FOLDER SELECT DROPDOWN
 // ===============================
 function populateFolderSelect() {
-    const select = document.getElementById("marks-folder");
-    select.innerHTML = ""; // Clear old options
+  const currentFolderSelect = document.getElementById('marks-folder');
+  const folderFilterSelect = document.getElementById('folder-select');
 
-    // 🔹 Safety check: make sure folders is always an array
-    if (!folders || !Array.isArray(folders) || folders.length === 0) {
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "No folders available";
-        select.appendChild(option);
-        return;
-    }
+  if (!currentFolderSelect || !folderFilterSelect) return;
 
-    // 🔹 Add each folder
-    folders.forEach(folder => {
-        const option = document.createElement("option");
-        option.value = folder.id;
-        option.textContent = folder.name;
-        select.appendChild(option);
+  // clear
+  currentFolderSelect.innerHTML = '<option value="">Select a folder</option>';
+  folderFilterSelect.innerHTML = '<option value="all">All Folders</option>';
 
-        // 🔹 Add subfolders (nested under folder)
-        if (folder.subfolders && Array.isArray(folder.subfolders) && folder.subfolders.length > 0) {
-            folder.subfolders.forEach(sf => {
-                const sfOption = document.createElement("option");
-                sfOption.value = sf.id;
-                sfOption.textContent = `-- ${sf.name}`;
-                select.appendChild(sfOption);
-            });
-        }
+  // add nested options with prefix
+  function addOptions(list, prefix = '') {
+    list.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = prefix + f.name;
+      currentFolderSelect.appendChild(opt);
+
+      const opt2 = document.createElement('option');
+      opt2.value = f.id;
+      opt2.textContent = prefix + f.name;
+      folderFilterSelect.appendChild(opt2);
+
+      if (f.subfolders && f.subfolders.length) {
+        addOptions(f.subfolders, prefix + '-- ');
+      }
     });
+  }
+
+  if (Array.isArray(folders) && folders.length) addOptions(folders);
+  else {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No folders available';
+    currentFolderSelect.appendChild(opt);
+  }
 }
 
 
