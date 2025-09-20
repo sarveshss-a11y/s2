@@ -1816,23 +1816,23 @@ initApp();
 
 // Event Listeners
 function setupEventListeners() {
-  // Auth navigation
+  // ---------------- Auth navigation ----------------
   document.getElementById('login-link')?.addEventListener('click', () => showPage('login-page'));
   document.getElementById('signup-link')?.addEventListener('click', () => showPage('signup-page'));
 
-  // Auth actions
+  // ---------------- Auth actions ----------------
   document.getElementById('signup-btn')?.addEventListener('click', handleSignup);
   document.getElementById('login-btn')?.addEventListener('click', handleLogin);
   document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
 
-  // Folder actions
+  // ---------------- Folder actions ----------------
   document.getElementById('create-folder-btn')?.addEventListener('click', createFolder);
 
-  // Marks actions
+  // ---------------- Marks actions ----------------
   document.getElementById('add-marks-btn')?.addEventListener('click', addMarks);
   document.getElementById('folder-select')?.addEventListener('change', filterMarksByFolder);
 
-  // Settings actions
+  // ---------------- Settings actions ----------------
   document.getElementById('settings-btn')?.addEventListener('click', () => showPage('settings-page'));
   document.getElementById('back-btn')?.addEventListener('click', () => showPage('app-page'));
   document.getElementById('change-username-btn')?.addEventListener('click', () => showModal('username-modal'));
@@ -1842,17 +1842,17 @@ function setupEventListeners() {
   document.getElementById('clear-data-btn')?.addEventListener('click', clearAllData);
   document.getElementById('delete-account-btn')?.addEventListener('click', deleteAccount);
 
-  // Theme toggle
+  // ---------------- Theme toggle ----------------
   document.getElementById('theme-switch')?.addEventListener('change', toggleTheme);
 
-  // Report download
+  // ---------------- Report download ----------------
   document.getElementById('download-report-btn')?.addEventListener('click', downloadReport);
 
-  // 🔥 Import / Export
+  // ---------------- Import / Export ----------------
   document.getElementById('export-data-btn')?.addEventListener('click', exportData);
-  document.getElementById('import-data-input')?.addEventListener('change', handleImportData);
+  document.getElementById('import-file')?.addEventListener('change', handleImportData);
 
-  // Modal close buttons
+  // ---------------- Modal close buttons ----------------
   document.querySelectorAll('.modal-close').forEach(button => {
     button.addEventListener('click', () => {
       const modalId = button.getAttribute('data-modal');
@@ -1860,16 +1860,17 @@ function setupEventListeners() {
     });
   });
 
-  // Chart type selection
+  // ---------------- Chart type selection ----------------
   document.getElementById('chart-type-select')?.addEventListener('change', (e) => {
     chartType = e.target.value;
     localStorage.setItem('chartType', chartType);
     renderChart();
   });
 
-  // Setup password toggles
+  // ---------------- Setup password toggles ----------------
   setupPasswordToggles();
 }
+
 
 
 document.addEventListener("DOMContentLoaded", setupEventListeners);
@@ -2614,57 +2615,53 @@ function createFolderTreeNode(folder) {
     // Export data
 // --- Import / Export ---
 
-async function exportData() {
-  try {
-    const token = localStorage.getItem("authToken");
-    const res = await fetch(`${API_BASE}/export-data`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+// ===============================
+// 📤 EXPORT DATA
+// ===============================
+function exportData() {
+  const data = { folders, marks, currentUser };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
-    if (!res.ok) throw new Error("Export failed");
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "marks-explorer-data.json";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error("Error exporting data:", err);
-    alert("Failed to export data.");
-  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "marks_data.json";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
-async function handleImportData(event) {
+// ===============================
+// 📥 IMPORT DATA
+// ===============================
+function handleImportData(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  try {
-    const text = await file.text();
-    const json = JSON.parse(text);
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
 
-    const token = localStorage.getItem("authToken");
-    const res = await fetch(`${API_BASE}/import-data`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(json)
-    });
+      // Overwrite local state
+      folders = imported.folders || [];
+      marks = imported.marks || [];
+      currentUser = imported.currentUser || currentUser;
 
-    if (!res.ok) throw new Error("Import failed");
+      // Re-render UI
+      renderFolders();
+      renderMarksTable();
+      updateStats();
+      renderChart();
 
-    await loadUserData();
-    alert("Data imported successfully!");
-  } catch (err) {
-    console.error("Error importing data:", err);
-    alert("Failed to import data.");
-  }
+      alert("✅ Data imported successfully!");
+    } catch (err) {
+      console.error("Error importing data:", err);
+      alert("❌ Failed to import data. Invalid file format.");
+    }
+  };
+  reader.readAsText(file);
 }
+
 
 
 
@@ -2677,7 +2674,7 @@ document.getElementById('import-data-btn').addEventListener('click', () => {
 document.getElementById('import-file').addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         if (confirm('Importing data will replace all your current data. Continue?')) {
-            importData(e.target.files[0]);
+            handleImportData(e.target.files[0]);
         }
     }
 });
