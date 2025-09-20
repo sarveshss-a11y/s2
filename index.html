@@ -1827,6 +1827,7 @@ function setupEventListeners() {
     
     // Folder actions
     document.getElementById('create-folder-btn')?.addEventListener('click', createFolder);    
+    
     // Marks actions
     document.getElementById('add-marks-btn')?.addEventListener('click', addMarks);
     document.getElementById('folder-select')?.addEventListener('change', filterMarksByFolder);
@@ -1865,6 +1866,11 @@ function setupEventListeners() {
     // Setup password toggles
     setupPasswordToggles();
 }
+
+// Run after DOM is fully loaded
+document.addEventListener("DOMContentLoaded", () => {
+    setupEventListeners();
+});
 
 
 
