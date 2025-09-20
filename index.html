@@ -1764,43 +1764,40 @@ async function checkApiConnection() {
 // 🚀 INIT APP (safe version)
 // ===============================
 function initApp() {
-    // 1. Setup event listeners
-    setupEventListeners();
-
-    // 2. Load theme preference
+    // Load theme preference first
     loadThemePreference();
-
-    // 3. Setup password toggles
+    
+    // Setup password toggles
     setupPasswordToggles();
-
-    // 4. Restore chart type preference
+    
+    // Restore chart type preference
     const chartSelect = document.getElementById("chart-type-select");
     if (chartSelect) {
         chartSelect.value = chartType;
     }
-
-    // 5. Check if user has a token
+    
+    // Check authentication status
     const token = localStorage.getItem("authToken");
     if (token) {
-        // Try to fetch user data
         loadUserData()
-            .then(() => {
-                checkApiConnection(); // Only check after we know token works
-            })
+            .then(() => checkApiConnection())
             .catch(err => {
                 console.error("Auto-login failed:", err.message);
                 localStorage.removeItem("authToken");
                 showPage("login-page");
-                checkApiConnection(); // Show status as disconnected
+                checkApiConnection();
             });
     } else {
-        // No token → show login page immediately
         showPage("login-page");
-        checkApiConnection(); // Will just say "API Ready (Login required)"
+        checkApiConnection();
     }
+    
+    // SETUP EVENT LISTENERS AFTER DOM IS READY
+    // Use setTimeout to ensure DOM is fully parsed
+    setTimeout(() => {
+        setupEventListeners();
+    }, 0);
 }
-
-
 
 // Start the app when DOM is ready
 if (document.readyState === 'loading') {
@@ -1809,9 +1806,49 @@ if (document.readyState === 'loading') {
     initApp();
 }
 
-// Start the app
-initApp();
+function exportData() {
+  const data = { folders, marks, currentUser };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "marks_data.json";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ===============================
+// 📥 IMPORT DATA
+// ===============================
+function handleImportData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+
+      // Overwrite local state
+      folders = imported.folders || [];
+      marks = imported.marks || [];
+      currentUser = imported.currentUser || currentUser;
+
+      // Re-render UI
+      renderFolders();
+      renderMarksTable();
+      updateStats();
+      renderChart();
+
+      alert("✅ Data imported successfully!");
+    } catch (err) {
+      console.error("Error importing data:", err);
+      alert("❌ Failed to import data. Invalid file format.");
+    }
+  };
+  reader.readAsText(file);
+}
 
 
 // Event Listeners
@@ -2618,49 +2655,7 @@ function createFolderTreeNode(folder) {
 // ===============================
 // 📤 EXPORT DATA
 // ===============================
-function exportData() {
-  const data = { folders, marks, currentUser };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "marks_data.json";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-// ===============================
-// 📥 IMPORT DATA
-// ===============================
-function handleImportData(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const imported = JSON.parse(e.target.result);
-
-      // Overwrite local state
-      folders = imported.folders || [];
-      marks = imported.marks || [];
-      currentUser = imported.currentUser || currentUser;
-
-      // Re-render UI
-      renderFolders();
-      renderMarksTable();
-      updateStats();
-      renderChart();
-
-      alert("✅ Data imported successfully!");
-    } catch (err) {
-      console.error("Error importing data:", err);
-      alert("❌ Failed to import data. Invalid file format.");
-    }
-  };
-  reader.readAsText(file);
-}
 
 
 
