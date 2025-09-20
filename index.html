@@ -1816,60 +1816,61 @@ initApp();
 
 // Event Listeners
 function setupEventListeners() {
-    // Auth navigation
-    document.getElementById('login-link')?.addEventListener('click', () => showPage('login-page'));
-    document.getElementById('signup-link')?.addEventListener('click', () => showPage('signup-page'));
-    
-    // Auth actions
-    document.getElementById('signup-btn')?.addEventListener('click', handleSignup);
-    document.getElementById('login-btn')?.addEventListener('click', handleLogin);
-    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
-    
-    // Folder actions
-    document.getElementById('create-folder-btn')?.addEventListener('click', createFolder);    
-    
-    // Marks actions
-    document.getElementById('add-marks-btn')?.addEventListener('click', addMarks);
-    document.getElementById('folder-select')?.addEventListener('change', filterMarksByFolder);
-    
-    // Settings actions
-    document.getElementById('settings-btn')?.addEventListener('click', () => showPage('settings-page'));
-    document.getElementById('back-btn')?.addEventListener('click', () => showPage('app-page'));
-    document.getElementById('change-username-btn')?.addEventListener('click', () => showModal('username-modal'));
-    document.getElementById('change-password-btn')?.addEventListener('click', () => showModal('password-modal'));
-    document.getElementById('save-username-btn')?.addEventListener('click', changeUsername);
-    document.getElementById('save-password-btn')?.addEventListener('click', changePassword);
-    document.getElementById('clear-data-btn')?.addEventListener('click', clearAllData);
-    document.getElementById('delete-account-btn')?.addEventListener('click', deleteAccount);
-    
-    // Theme toggle
-    document.getElementById('theme-switch')?.addEventListener('change', toggleTheme);
-    
-    // Report download
-    document.getElementById('download-report-btn')?.addEventListener('click', downloadReport);
+  // Auth navigation
+  document.getElementById('login-link')?.addEventListener('click', () => showPage('login-page'));
+  document.getElementById('signup-link')?.addEventListener('click', () => showPage('signup-page'));
 
-    // 🔥 Import / Export
-    document.getElementById('export-data-btn')?.addEventListener('click', exportData);
-    document.getElementById('import-data-input')?.addEventListener('change', handleImportData);
+  // Auth actions
+  document.getElementById('signup-btn')?.addEventListener('click', handleSignup);
+  document.getElementById('login-btn')?.addEventListener('click', handleLogin);
+  document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
 
-    // Modal close buttons
-    document.querySelectorAll('.modal-close').forEach(button => {
-        button.addEventListener('click', () => {
-            const modalId = button.getAttribute('data-modal');
-            hideModal(modalId);
-        });
+  // Folder actions
+  document.getElementById('create-folder-btn')?.addEventListener('click', createFolder);
+
+  // Marks actions
+  document.getElementById('add-marks-btn')?.addEventListener('click', addMarks);
+  document.getElementById('folder-select')?.addEventListener('change', filterMarksByFolder);
+
+  // Settings actions
+  document.getElementById('settings-btn')?.addEventListener('click', () => showPage('settings-page'));
+  document.getElementById('back-btn')?.addEventListener('click', () => showPage('app-page'));
+  document.getElementById('change-username-btn')?.addEventListener('click', () => showModal('username-modal'));
+  document.getElementById('change-password-btn')?.addEventListener('click', () => showModal('password-modal'));
+  document.getElementById('save-username-btn')?.addEventListener('click', changeUsername);
+  document.getElementById('save-password-btn')?.addEventListener('click', changePassword);
+  document.getElementById('clear-data-btn')?.addEventListener('click', clearAllData);
+  document.getElementById('delete-account-btn')?.addEventListener('click', deleteAccount);
+
+  // Theme toggle
+  document.getElementById('theme-switch')?.addEventListener('change', toggleTheme);
+
+  // Report download
+  document.getElementById('download-report-btn')?.addEventListener('click', downloadReport);
+
+  // 🔥 Import / Export
+  document.getElementById('export-data-btn')?.addEventListener('click', exportData);
+  document.getElementById('import-data-input')?.addEventListener('change', handleImportData);
+
+  // Modal close buttons
+  document.querySelectorAll('.modal-close').forEach(button => {
+    button.addEventListener('click', () => {
+      const modalId = button.getAttribute('data-modal');
+      hideModal(modalId);
     });
-    
-    // Chart type selection
-    document.getElementById('chart-type-select')?.addEventListener('change', (e) => {
-        chartType = e.target.value;
-        localStorage.setItem('chartType', chartType);
-        renderChart();
-    });
-    
-    // Setup password toggles
-    setupPasswordToggles();
+  });
+
+  // Chart type selection
+  document.getElementById('chart-type-select')?.addEventListener('change', (e) => {
+    chartType = e.target.value;
+    localStorage.setItem('chartType', chartType);
+    renderChart();
+  });
+
+  // Setup password toggles
+  setupPasswordToggles();
 }
+
 
 document.addEventListener("DOMContentLoaded", setupEventListeners);
 
@@ -2611,59 +2612,61 @@ function createFolderTreeNode(folder) {
         node.appendChild(childrenContainer);
     }
     // Export data
+// --- Import / Export ---
+
 async function exportData() {
-    try {
-        const token = localStorage.getItem("authToken");
-        const res = await fetch(`${API_BASE}/export-data`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+  try {
+    const token = localStorage.getItem("authToken");
+    const res = await fetch(`${API_BASE}/export-data`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-        if (!res.ok) throw new Error("Export failed");
+    if (!res.ok) throw new Error("Export failed");
 
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "marks-explorer-data.json";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    } catch (err) {
-        console.error("Error exporting data:", err);
-        alert("Failed to export data.");
-    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "marks-explorer-data.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Error exporting data:", err);
+    alert("Failed to export data.");
+  }
 }
 
-
-// Import data
 async function handleImportData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+  const file = event.target.files[0];
+  if (!file) return;
 
-    try {
-        const text = await file.text();
-        const json = JSON.parse(text);
+  try {
+    const text = await file.text();
+    const json = JSON.parse(text);
 
-        const token = localStorage.getItem("authToken");
-        const res = await fetch(`${API_BASE}/import-data`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify(json)
-        });
+    const token = localStorage.getItem("authToken");
+    const res = await fetch(`${API_BASE}/import-data`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(json)
+    });
 
-        if (!res.ok) throw new Error("Import failed");
+    if (!res.ok) throw new Error("Import failed");
 
-        await loadUserData();
-        alert("Data imported successfully!");
-    } catch (err) {
-        console.error("Error importing data:", err);
-        alert("Failed to import data.");
-    }
+    await loadUserData();
+    alert("Data imported successfully!");
+  } catch (err) {
+    console.error("Error importing data:", err);
+    alert("Failed to import data.");
+  }
 }
+
+
 
 
 // Add event listeners for import/export
