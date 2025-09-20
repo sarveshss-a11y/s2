@@ -1887,6 +1887,9 @@ function setupEventListeners() {
 
   // ---------------- Import / Export ----------------
   document.getElementById('export-data-btn')?.addEventListener('click', exportData);
+  document.getElementById('import-data-btn')?.addEventListener('click', () => {
+    document.getElementById('import-file').click();
+  });
   document.getElementById('import-file')?.addEventListener('change', handleImportData);
 
   // ---------------- Modal close buttons ----------------
@@ -2131,40 +2134,50 @@ function editFolder(folderId) {
 }
 
 // Recursive helper to find a folder by ID
+// Helper function to find folder by ID with better error handling
 function findFolderById(id, list = folders) {
-  for (const f of list) {
-    if (f.id === id) return f;
-    if (f.subfolders && f.subfolders.length > 0) {
-      const found = findFolderById(id, f.subfolders);
+  if (!id || !list) return null;
+  
+  for (const folder of list) {
+    if (folder.id === id) return folder;
+    
+    // Recursively search in subfolders
+    if (folder.subfolders && folder.subfolders.length > 0) {
+      const found = findFolderById(id, folder.subfolders);
       if (found) return found;
     }
   }
+  
   return null;
 }
 
 
+// Helper function to collect all marks from folders and subfolders
 function collectAllMarks(folderList) {
   const out = [];
+  
+  if (!folderList || !Array.isArray(folderList)) return out;
 
   function recurse(list) {
-    for (const f of list) {
+    for (const folder of list) {
       // If this folder has marks, process them
-      if (Array.isArray(f.marks)) {
-        f.marks.forEach(m => {
-          // Ensure every mark has its folderId
-          if (!m.folderId) m.folderId = f.id;
-          out.push(m);
+      if (Array.isArray(folder.marks)) {
+        folder.marks.forEach(mark => {
+          // Ensure every mark has its folderId and folderName
+          if (!mark.folderId) mark.folderId = folder.id;
+          if (!mark.folderName) mark.folderName = folder.name;
+          out.push(mark);
         });
       }
 
       // If this folder has subfolders, recurse
-      if (f.subfolders && f.subfolders.length) {
-        recurse(f.subfolders);
+      if (folder.subfolders && folder.subfolders.length) {
+        recurse(folder.subfolders);
       }
     }
   }
 
-  recurse(folderList || []);
+  recurse(folderList);
   return out;
 }
 
@@ -2698,15 +2711,15 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 function setupPasswordToggles() {
     document.querySelectorAll('.toggle-password').forEach(button => {
         button.addEventListener('click', () => {
-            const input = button.previousElementSibling;
+            const input = button.parentElement.querySelector('input');
             if (!input) return;
 
             if (input.type === "password") {
                 input.type = "text";
-                button.textContent = "🙈"; // hide
+                button.textContent = "🙈";
             } else {
                 input.type = "password";
-                button.textContent = "👁️"; // show
+                button.textContent = "👁️";
             }
         });
     });
@@ -2715,58 +2728,66 @@ function setupPasswordToggles() {
 
 // Add this function call at the end of your initApp function
 
-function renderChart(selectedFolderId = "all") {
-  const ctx = document.getElementById("marks-chart").getContext("2d");
+function renderChart() {
+    const ctx = document.getElementById('progress-chart').getContext('2d');
+    if (chart) chart.destroy();
 
-  let marksToShow = [];
-  if (selectedFolderId === "all") {
-    marksToShow = marks;
-  } else {
-    const folder = findFolderById(selectedFolderId, folders);
-    marksToShow = getMarksFromFolder(folder);
-  }
+    const labels = marks.map(m => m.subject);
+    const percentages = marks.map(m => 
+        m.totalMarks > 0 ? ((m.marksObtained / m.totalMarks) * 100).toFixed(2) : 0
+    );
 
-  const labels = marksToShow.map(m => m.subject);
-  const percentages = marksToShow.map(m => 
-    m.totalMarks > 0 ? (m.marksObtained / m.totalMarks) * 100 : 0
-  );
-
-  // assign a color to each subject
-  const subjectColors = {};
-  const palette = [
-    "#4caf50", "#2196f3", "#ff9800", "#9c27b0", "#e91e63", "#3f51b5", "#009688"
-  ];
-
-  labels.forEach((subj, i) => {
-    if (!subjectColors[subj]) {
-      subjectColors[subj] = palette[i % palette.length];
-    }
-  });
-
-  const backgroundColors = labels.map(subj => subjectColors[subj]);
-
-  if (window.marksChart) window.marksChart.destroy();
-
-  window.marksChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [{
-        label: "Percentage",
-        data: percentages,
-        backgroundColor: backgroundColors
-      }]
-    },
-    options: {
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100
+    // Generate unique colors for each subject
+    const colorPalette = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
+        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab'
+    ];
+    
+    const backgroundColors = [];
+    const subjectColorMap = {};
+    
+    // Assign a consistent color to each subject
+    marks.forEach((mark, index) => {
+        if (!subjectColorMap[mark.subject]) {
+            subjectColorMap[mark.subject] = colorPalette[Object.keys(subjectColorMap).length % colorPalette.length];
         }
-      }
-    }
-  });
+        backgroundColors.push(subjectColorMap[mark.subject]);
+    });
+
+    chart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels,
+            datasets: [{
+                label: 'Percentage',
+                data: percentages,
+                backgroundColor: backgroundColors,
+                borderColor: 'rgba(0,0,0,0.1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { 
+                    display: true,
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const mark = marks[context.dataIndex];
+                            return `${mark.marksObtained}/${mark.totalMarks} (${context.raw}%)`;
+                        }
+                    }
+                }
+            },
+            scales: { y: { beginAtZero: true, max: 100 } }
+        }
+    });
 }
+
 
 
 
@@ -3031,18 +3052,37 @@ async function loadUserData() {
 
 
 
+// Enhanced function to get folder name by ID with caching
 function getFolderName(folderId) {
-    function findFolderName(folders, id) {
-        for (const f of folders) {
-            if (f.id === id) return f.name;
-            if (f.subfolders) {
-                const found = findFolderName(f.subfolders, id);
-                if (found) return found;
-            }
-        }
-        return "Unknown";
+  if (!folderId) return "Uncategorized";
+  
+  // Try to find in cache first (if implemented)
+  const folder = findFolderById(folderId);
+  
+  if (folder && folder.name) {
+    return folder.name;
+  }
+  
+  // If not found, try to extract from marks data
+  const markWithFolder = marks.find(m => m.folderId === folderId);
+  if (markWithFolder && markWithFolder.folderName) {
+    return markWithFolder.folderName;
+  }
+  
+  return "Unknown Folder";
+}
+
+function findFolderInSubfolders(folder, targetId) {
+    if (!folder.subfolders || folder.subfolders.length === 0) return null;
+    
+    for (const subfolder of folder.subfolders) {
+        if (subfolder.id === targetId) return subfolder;
+        
+        const found = findFolderInSubfolders(subfolder, targetId);
+        if (found) return found;
     }
-    return findFolderName(folders, folderId);
+    
+    return null;
 }
 
 
@@ -3050,6 +3090,7 @@ function getFolderName(folderId) {
 // ✅ Render marks into the table
 function renderMarksTable(selectedFolderId = "all") {
   const tableBody = document.getElementById("marks-table-body");
+  const emptyState = document.getElementById("empty-marks");
   tableBody.innerHTML = "";
 
   let marksToShow = [];
@@ -3065,32 +3106,46 @@ function renderMarksTable(selectedFolderId = "all") {
     }
   }
 
+  // Show empty state if no marks
+  if (marksToShow.length === 0) {
+    emptyState.style.display = "block";
+    return;
+  } else {
+    emptyState.style.display = "none";
+  }
+
   marksToShow.forEach(mark => {
-    // Find folder name
-    const folder = findFolderById(mark.folderId, folders);
-    const folderName = folder ? folder.name : "Unknown";
+    // Get folder name - use the improved function
+    const folderName = getFolderName(mark.folderId);
 
     // Calculate percentage
     const percentage = mark.totalMarks > 0
       ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2)
       : "0.00";
 
-    // Choose color
-    let percentageColor = "red";
+    // Choose color class based on percentage
+    let percentageClass = "low";
     if (percentage >= 75) {
-      percentageColor = "green";
+      percentageClass = "high";
     } else if (percentage >= 40) {
-      percentageColor = "orange"; // better than yellow for visibility
+      percentageClass = "medium";
+    }
+
+    // Format date if it exists
+    let formattedDate = "";
+    if (mark.date) {
+      const dateObj = new Date(mark.date);
+      formattedDate = !isNaN(dateObj) ? dateObj.toLocaleDateString() : mark.date;
     }
 
     // Build row
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${mark.subject}</td>
-      <td>${mark.marksObtained}</td>
-      <td>${mark.totalMarks}</td>
-      <td style="color:${percentageColor}; font-weight:bold;">${percentage}%</td>
-      <td>${mark.date || ""}</td>
+      <td>${mark.subject || "Unnamed Subject"}</td>
+      <td>${mark.marksObtained || 0}</td>
+      <td>${mark.totalMarks || 0}</td>
+      <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
+      <td>${formattedDate}</td>
       <td>${folderName}</td>
       <td>
         <button class="action-btn edit" onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
@@ -3226,6 +3281,42 @@ function debugData() {
         .catch(error => console.error('API Error:', error));
 }
 
+// Optional: Function to build a folder cache for faster lookups
+function buildFolderCache() {
+  const cache = {};
+  
+  function processFolders(folderList, parentPath = "") {
+    for (const folder of folderList) {
+      const fullPath = parentPath ? `${parentPath} → ${folder.name}` : folder.name;
+      cache[folder.id] = fullPath;
+      
+      if (folder.subfolders && folder.subfolders.length > 0) {
+        processFolders(folder.subfolders, fullPath);
+      }
+    }
+  }
+  
+  processFolders(folders);
+  return cache;
+}
+
+// Then modify getFolderName to use the cache:
+let folderCache = {};
+function getFolderName(folderId) {
+  if (!folderId) return "Uncategorized";
+  
+  // Build cache if empty
+  if (Object.keys(folderCache).length === 0) {
+    folderCache = buildFolderCache();
+  }
+  
+  return folderCache[folderId] || "Unknown Folder";
+}
+
+// Remember to refresh the cache when folders change
+function refreshFolderCache() {
+  folderCache = buildFolderCache();
+}
 // You can call this from the browser console to debug
 window.debugData = debugData;
 
