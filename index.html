@@ -1861,11 +1861,19 @@ async function handleSignup() {
 // ===============================
 // 🔑 HANDLE LOGIN
 // ===============================
+// ===============================
+// 🔑 HANDLE LOGIN
+// ===============================
 async function handleLogin(event) {
     event.preventDefault();
 
-    const username = document.getElementById("login-username").value;
-    const password = document.getElementById("login-password").value;
+    const username = document.getElementById("login-username").value.trim();
+    const password = document.getElementById("login-password").value.trim();
+
+    if (!username || !password) {
+        showError("login-error", "Please enter both username and password");
+        return;
+    }
 
     try {
         // 🔹 Call backend login API
@@ -1875,25 +1883,28 @@ async function handleLogin(event) {
             body: JSON.stringify({ username, password })
         });
 
-        if (!res.ok) throw new Error("Login failed");
-
         const data = await res.json();
 
-        // 🔹 Make token backend-compatible
-        // backend expects base64 encoded JSON with { userId }
-        const fakeToken = btoa(JSON.stringify({ userId: data.userId }));
-        localStorage.setItem("authToken", fakeToken);
+        if (!res.ok) {
+            throw new Error(data.message || "Login failed");
+        }
 
-        alert("Login successful!");
+        // 🔹 Save real token from backend
+        localStorage.setItem("authToken", data.token);
+
+        // 🔹 Save current user info
+        currentUser = data.user;
+
+        // 🔹 Go to app page and load user data
         showPage("app-page");
-
-        // 🔹 Load user data (folders + marks + stats + chart)
         await loadUserData();
-    } catch (err) {
-        console.error("❌ Login error:", err);
-        alert("Login failed. Please check your username/password.");
+
+    } catch (error) {
+        console.error("Login error:", error);
+        showError("login-error", error.message || "Login failed. Please try again.");
     }
 }
+
 
 
 // ✅ Fixed createFolder function
@@ -2570,16 +2581,21 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 // Toggle password visibility - MOVE THIS TO THE BOTTOM OF THE FILE
 // Setup password toggles
 // Setup password toggles - Alternative solution
+// ===============================
+// 👁️ PASSWORD TOGGLE
+// ===============================
 function setupPasswordToggles() {
-    document.querySelectorAll(".toggle-password").forEach(button => {
-        button.addEventListener("click", () => {
-            const input = button.previousElementSibling; // the input before button
+    document.querySelectorAll('.toggle-password').forEach(button => {
+        button.addEventListener('click', () => {
+            const input = button.previousElementSibling;
+            if (!input) return;
+
             if (input.type === "password") {
                 input.type = "text";
-                button.textContent = "🙈"; // change icon to "hide"
+                button.textContent = "🙈"; // eye-off
             } else {
                 input.type = "password";
-                button.textContent = "👁️"; // change back to "show"
+                button.textContent = "👁️"; // eye
             }
         });
     });
