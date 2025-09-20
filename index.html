@@ -1847,7 +1847,11 @@ function setupEventListeners() {
     
     // Report download
     document.getElementById('download-report-btn')?.addEventListener('click', downloadReport);
-    
+
+    // 🔥 Import / Export
+    document.getElementById('export-data-btn')?.addEventListener('click', exportData);
+    document.getElementById('import-data-input')?.addEventListener('change', handleImportData);
+
     // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(button => {
         button.addEventListener('click', () => {
@@ -1866,6 +1870,9 @@ function setupEventListeners() {
     // Setup password toggles
     setupPasswordToggles();
 }
+
+document.addEventListener("DOMContentLoaded", setupEventListeners);
+
 
 // Run after DOM is fully loaded
 document.addEventListener("DOMContentLoaded", () => {
@@ -2099,21 +2106,29 @@ function findFolderById(id, list = folders) {
 
 function collectAllMarks(folderList) {
   const out = [];
+
   function recurse(list) {
     for (const f of list) {
+      // If this folder has marks, process them
       if (Array.isArray(f.marks)) {
         f.marks.forEach(m => {
-          // ensure mark has folderId
+          // Ensure every mark has its folderId
           if (!m.folderId) m.folderId = f.id;
           out.push(m);
         });
       }
-      if (f.subfolders && f.subfolders.length) recurse(f.subfolders);
+
+      // If this folder has subfolders, recurse
+      if (f.subfolders && f.subfolders.length) {
+        recurse(f.subfolders);
+      }
     }
   }
+
   recurse(folderList || []);
   return out;
 }
+
 // Marks functions
 
 
@@ -2598,59 +2613,58 @@ function createFolderTreeNode(folder) {
     // Export data
 async function exportData() {
     try {
-        const response = await apiRequest('/api/export-data');
-        
-        // Create a download link
-        const dataStr = JSON.stringify(response, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = 'marks-explorer-data.json';
-        
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-        
-        alert('Data exported successfully!');
-    } catch (error) {
-        console.error('Error exporting data:', error);
-        alert('Failed to export data: ' + error.message);
+        const token = localStorage.getItem("authToken");
+        const res = await fetch(`${API_BASE}/export-data`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("Export failed");
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "marks-explorer-data.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error("Error exporting data:", err);
+        alert("Failed to export data.");
     }
 }
 
+
 // Import data
-async function importData(file) {
+async function handleImportData(event) {
+    const file = event.target.files[0];
     if (!file) return;
-    
+
     try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-                
-                if (!data.folders) {
-                    throw new Error('Invalid file format');
-                }
-                
-                await apiRequest('/api/import-data', {
-                    method: 'POST',
-                    body: { folders: data.folders }
-                });
-                
-                // Reload the data
-                await loadUserData();
-                alert('Data imported successfully!');
-            } catch (error) {
-                console.error('Error parsing import file:', error);
-                alert('Failed to import data: Invalid file format');
-            }
-        };
-        reader.readAsText(file);
-    } catch (error) {
-        console.error('Error importing data:', error);
-        alert('Failed to import data: ' + error.message);
+        const text = await file.text();
+        const json = JSON.parse(text);
+
+        const token = localStorage.getItem("authToken");
+        const res = await fetch(`${API_BASE}/import-data`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(json)
+        });
+
+        if (!res.ok) throw new Error("Import failed");
+
+        await loadUserData();
+        alert("Data imported successfully!");
+    } catch (err) {
+        console.error("Error importing data:", err);
+        alert("Failed to import data.");
     }
 }
+
 
 // Add event listeners for import/export
 document.getElementById('export-data-btn').addEventListener('click', exportData);
@@ -2707,48 +2721,58 @@ function setupPasswordToggles() {
 // Add this function call at the end of your initApp function
 
 function renderChart(selectedFolderId = "all") {
-    const ctx = document.getElementById("progress-chart").getContext("2d");
+  const ctx = document.getElementById("marks-chart").getContext("2d");
 
-    let marksToShow = [];
-    if (selectedFolderId === "all") {
-        marksToShow = folders.flatMap(f => f.marks || []);
-    } else {
-        const folder = folders.find(f => f.id === selectedFolderId);
-        marksToShow = folder ? folder.marks : [];
+  let marksToShow = [];
+  if (selectedFolderId === "all") {
+    marksToShow = marks;
+  } else {
+    const folder = findFolderById(selectedFolderId, folders);
+    marksToShow = getMarksFromFolder(folder);
+  }
+
+  const labels = marksToShow.map(m => m.subject);
+  const percentages = marksToShow.map(m => 
+    m.totalMarks > 0 ? (m.marksObtained / m.totalMarks) * 100 : 0
+  );
+
+  // assign a color to each subject
+  const subjectColors = {};
+  const palette = [
+    "#4caf50", "#2196f3", "#ff9800", "#9c27b0", "#e91e63", "#3f51b5", "#009688"
+  ];
+
+  labels.forEach((subj, i) => {
+    if (!subjectColors[subj]) {
+      subjectColors[subj] = palette[i % palette.length];
     }
+  });
 
-    const colors = [
-        "#ff6384", "#36a2eb", "#ffce56", "#4bc0c0",
-        "#9966ff", "#ff9f40", "#8bc34a", "#e91e63"
-    ];
+  const backgroundColors = labels.map(subj => subjectColors[subj]);
 
-    const data = {
-        labels: marksToShow.map(m => m.subject),
-        datasets: [{
-            label: "Percentage",
-            data: marksToShow.map(m => (m.marksObtained / m.totalMarks) * 100),
-            backgroundColor: marksToShow.map((_, i) => colors[i % colors.length]),
-            borderColor: marksToShow.map((_, i) => colors[i % colors.length]),
-            borderWidth: 1
-        }]
-    };
+  if (window.marksChart) window.marksChart.destroy();
 
-    if (chart) chart.destroy(); // clear old chart
-
-    chart = new Chart(ctx, {
-        type: chartType, // 'bar' | 'line' | 'pie' | 'doughnut' | 'radar'
-        data: data,
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: chartType !== "bar" }
-            },
-            scales: chartType === "bar" || chartType === "line" ? {
-                y: { beginAtZero: true, max: 100 }
-            } : {}
+  window.marksChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Percentage",
+        data: percentages,
+        backgroundColor: backgroundColors
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
         }
-    });
+      }
+    }
+  });
 }
+
 
 
 
@@ -3029,37 +3053,49 @@ function getFolderName(folderId) {
 
 // Replace the renderMarksTable function with this:
 // ✅ Render marks into the table
-function renderMarksTable(selectedFolderId = 'all') {
-  const tableBody = document.getElementById('marks-table-body');
-  if (!tableBody) return;
-  tableBody.innerHTML = '';
+function renderMarksTable(selectedFolderId = "all") {
+  const tableBody = document.getElementById("marks-table-body");
+  tableBody.innerHTML = "";
 
   let marksToShow = [];
-  if (selectedFolderId === 'all' || !selectedFolderId) {
-    marksToShow = marks.slice(); // global marks collected by loadUserData
-  } else {
-    const folder = findFolderById(selectedFolderId, folders);
-    marksToShow = getMarksFromFolder(folder);
-  }
 
-  if (!marksToShow || marksToShow.length === 0) {
-    document.getElementById('empty-marks').style.display = 'block';
-    return;
+  if (selectedFolderId === "all") {
+    // Collect marks from all folders
+    marksToShow = collectAllMarks(folders);
+  } else {
+    // Find marks from a specific folder
+    const folder = findFolderById(selectedFolderId, folders);
+    if (folder) {
+      marksToShow = collectAllMarks([folder]);
+    }
   }
-  document.getElementById('empty-marks').style.display = 'none';
 
   marksToShow.forEach(mark => {
-    const tr = document.createElement('tr');
-    const percentage = mark.totalMarks > 0 ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2) : '0.00';
-    const folderObj = findFolderById(mark.folderId, folders);
-    const folderName = folderObj ? folderObj.name : 'Unknown';
+    // Find folder name
+    const folder = findFolderById(mark.folderId, folders);
+    const folderName = folder ? folder.name : "Unknown";
 
+    // Calculate percentage
+    const percentage = mark.totalMarks > 0
+      ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2)
+      : "0.00";
+
+    // Choose color
+    let percentageColor = "red";
+    if (percentage >= 75) {
+      percentageColor = "green";
+    } else if (percentage >= 40) {
+      percentageColor = "orange"; // better than yellow for visibility
+    }
+
+    // Build row
+    const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${mark.subject}</td>
       <td>${mark.marksObtained}</td>
       <td>${mark.totalMarks}</td>
-      <td>${percentage}%</td>
-      <td>${mark.date || ''}</td>
+      <td style="color:${percentageColor}; font-weight:bold;">${percentage}%</td>
+      <td>${mark.date || ""}</td>
       <td>${folderName}</td>
       <td>
         <button class="action-btn edit" onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
@@ -3072,11 +3108,19 @@ function renderMarksTable(selectedFolderId = 'all') {
 
 
 
+
 async function deleteMark(folderId, markId) {
-    if (!confirm('Delete this mark?')) return;
-    await dataAPI.deleteMarks(folderId, markId);
-    await loadUserData();
+    console.log("Deleting mark → folderId:", folderId, "markId:", markId);
+
+    try {
+        await dataAPI.deleteMarks(folderId, markId);
+        await loadUserData(); // refresh table and sidebar
+    } catch (err) {
+        console.error("Delete failed:", err);
+        alert("Failed to delete mark: " + (err.message || err));
+    }
 }
+
 
 function editMark(folderId, markId) {
     const mark = marks.find(m => m.id === markId);
