@@ -1743,20 +1743,28 @@ async function checkApiConnection() {
 // Initialize the app
 // Initialize the app when the DOM is loaded
 function initApp() {
+    // ✅ Check API connection
     checkApiConnection();
+
+    // ✅ Setup all event listeners
     setupEventListeners();
+
+    // ✅ Check if user is logged in
     checkAuthStatus();
+
+    // ✅ Load saved theme (dark/light)
     loadThemePreference();
-    
-    // ✅ Set saved chart type in dropdown when app loads
-    const chartSelect = document.getElementById('chart-type-select');
+
+    // ✅ Setup password toggle buttons (signup/login + modal)
+    setupPasswordToggles();
+
+    // ✅ Set saved chart type in dropdown
+    const chartSelect = document.getElementById("chart-type-select");
     if (chartSelect) {
         chartSelect.value = chartType;
     }
-    
-    // ✅ Setup password toggles after pages are loaded
-    setTimeout(setupPasswordToggles, 100);
 }
+
 
 // Start the app when DOM is ready
 if (document.readyState === 'loading') {
@@ -1861,7 +1869,7 @@ async function handleLogin(event) {
 
     try {
         // 🔹 Call backend login API
-        const res = await fetch(`${API_URL}/api/login`, {
+        const res = await fetch(`${API_BASE_URL}/api/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password })
@@ -1893,20 +1901,35 @@ async function handleLogin(event) {
 // 📂 CREATE NEW FOLDER
 // ===============================
 async function createFolder() {
-    const folderName = prompt("Enter folder name:");
-    if (!folderName) return;
+    const folderNameInput = document.getElementById("folderName");
+    const name = folderNameInput.value.trim();
+
+    if (!name) {
+        alert("Please enter a folder name.");
+        return;
+    }
 
     try {
-        await dataAPI.createFolder({ name: folderName });
-        await loadUserData();  // refresh sidebar + marks
-        alert("Folder created successfully!");
+        // Call backend API to create folder
+        const result = await dataAPI.createFolder(name);
+
+        // Add new folder to local state
+        if (result.folder) {
+            folders.push(result.folder);
+        }
+
+        // ✅ Update UI
+        folderNameInput.value = "";     // clear input
+        populateFolderSelect();         // refresh dropdowns
+        renderMarksTable("all");        // refresh marks table
+        if (typeof renderFolderTree === "function") {
+            renderFolderTree();         // refresh sidebar if available
+        }
     } catch (err) {
-        console.error("❌ Error creating folder:", err);
+        console.error("Error creating folder:", err);
         alert("Failed to create folder. Please try again.");
     }
 }
-
-
 
 
 
@@ -2089,9 +2112,10 @@ function deleteMarks(markId) {
 }
 
 function filterMarksByFolder() {
-    const folderId = document.getElementById('folder-select').value;
-    renderMarksTable(folderId);
+    const selectedFolderId = document.getElementById("folder-select").value;
+    renderMarksTable(selectedFolderId);
 }
+
 
 // Settings functions
 async function changeUsername() {
@@ -2547,75 +2571,66 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 // Setup password toggles
 // Setup password toggles - Alternative solution
 function setupPasswordToggles() {
-    // Try multiple times to find the elements (in case they're not loaded yet)
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    const trySetup = () => {
-        const toggleButtons = document.querySelectorAll('.toggle-password');
-        
-        if (toggleButtons.length > 0 || attempts >= maxAttempts) {
-            if (toggleButtons.length > 0) {
-                toggleButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const input = this.parentElement.querySelector('input');
-                        if (input) {
-                            if (input.type === 'password') {
-                                input.type = 'text';
-                                this.textContent = '🔒';
-                            } else {
-                                input.type = 'password';
-                                this.textContent = '👁️';
-                            }
-                        }
-                    });
-                });
+    document.querySelectorAll(".toggle-password").forEach(button => {
+        button.addEventListener("click", () => {
+            const input = button.previousElementSibling; // the input before button
+            if (input.type === "password") {
+                input.type = "text";
+                button.textContent = "🙈"; // change icon to "hide"
+            } else {
+                input.type = "password";
+                button.textContent = "👁️"; // change back to "show"
             }
-            return;
-        }
-        
-        attempts++;
-        setTimeout(trySetup, 100);
-    };
-    
-    trySetup();
-}
-// Add this function call at the end of your initApp function
-
-function renderMarksTable(folderId = "all") {
-    const tbody = document.getElementById("marks-table-body");
-    tbody.innerHTML = "";
-
-    let marksToRender = [];
-
-    if (folderId === "all") {
-        marksToRender = marks;
-    } else {
-        marksToRender = marks.filter(m => m.folderId === folderId);
-    }
-
-    if (!marksToRender || marksToRender.length === 0) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="5">No marks found</td>`;
-        tbody.appendChild(tr);
-        return;
-    }
-
-    marksToRender.forEach(mark => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${mark.subject}</td>
-            <td>${mark.marksObtained}</td>
-            <td>${mark.totalMarks}</td>
-            <td>${mark.date || ""}</td>
-            <td>
-                <button onclick="editMark('${mark.folderId}', '${mark.id}')">✏️</button>
-                <button onclick="deleteMark('${mark.folderId}', '${mark.id}')">🗑️</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
+        });
     });
 }
+
+// Add this function call at the end of your initApp function
+
+function renderChart(selectedFolderId = "all") {
+    const ctx = document.getElementById("progress-chart").getContext("2d");
+
+    let marksToShow = [];
+    if (selectedFolderId === "all") {
+        marksToShow = folders.flatMap(f => f.marks || []);
+    } else {
+        const folder = folders.find(f => f.id === selectedFolderId);
+        marksToShow = folder ? folder.marks : [];
+    }
+
+    const colors = [
+        "#ff6384", "#36a2eb", "#ffce56", "#4bc0c0",
+        "#9966ff", "#ff9f40", "#8bc34a", "#e91e63"
+    ];
+
+    const data = {
+        labels: marksToShow.map(m => m.subject),
+        datasets: [{
+            label: "Percentage",
+            data: marksToShow.map(m => (m.marksObtained / m.totalMarks) * 100),
+            backgroundColor: marksToShow.map((_, i) => colors[i % colors.length]),
+            borderColor: marksToShow.map((_, i) => colors[i % colors.length]),
+            borderWidth: 1
+        }]
+    };
+
+    if (chart) chart.destroy(); // clear old chart
+
+    chart = new Chart(ctx, {
+        type: chartType, // 'bar' | 'line' | 'pie' | 'doughnut' | 'radar'
+        data: data,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: chartType !== "bar" }
+            },
+            scales: chartType === "bar" || chartType === "line" ? {
+                y: { beginAtZero: true, max: 100 }
+            } : {}
+        }
+    });
+}
+
 
 
 // Add this helper function to find folder by ID
@@ -2936,47 +2951,55 @@ function getFolderName(folderId) {
 
 // Replace the renderMarksTable function with this:
 // ✅ Render marks into the table
-function renderMarksTable() {
-    const tbody = document.getElementById('marks-table-body');
-    tbody.innerHTML = '';
+function renderMarksTable(selectedFolderId = "all") {
+    const tableBody = document.getElementById("marks-table-body");
+    tableBody.innerHTML = "";
 
-    if (!marks || marks.length === 0) {
-        document.getElementById('empty-marks').style.display = 'block';
+    let marksToShow = [];
+
+    if (selectedFolderId === "all") {
+        // show all marks from all folders
+        marksToShow = folders.flatMap(f => f.marks || []);
+    } else {
+        // show marks from only the selected folder
+        const folder = folders.find(f => f.id === selectedFolderId);
+        marksToShow = folder ? folder.marks : [];
+    }
+
+    if (marksToShow.length === 0) {
+        document.getElementById("empty-marks").style.display = "block";
         return;
     }
-    document.getElementById('empty-marks').style.display = 'none';
+    document.getElementById("empty-marks").style.display = "none";
 
-    marks.forEach(mark => {
-        const percentage = mark.totalMarks > 0
-            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2)
-            : 0;
+    marksToShow.forEach(mark => {
+        const tr = document.createElement("tr");
 
-        let percentageClass = percentage >= 75 ? 'high' : (percentage >= 40 ? 'medium' : 'low');
+        // calculate percentage
+        const percentage = mark.totalMarks > 0 
+            ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2) 
+            : "0.00";
 
-        const row = document.createElement('tr');
-        row.innerHTML = `
+        // ✅ convert folderId → folder name
+        const folder = folders.find(f => f.id === mark.folderId);
+        const folderName = folder ? folder.name : "Unknown";
+
+        tr.innerHTML = `
             <td>${mark.subject}</td>
             <td>${mark.marksObtained}</td>
             <td>${mark.totalMarks}</td>
-            <td><span class="percentage ${percentageClass}">${percentage}%</span></td>
+            <td>${percentage}%</td>
             <td>${mark.date}</td>
-            <td>${getFolderName(mark.folderId)}</td>
-            <td class="action-buttons">
-                <button class="action-btn edit" data-id="${mark.id}" data-folder="${mark.folderId}">✏️</button>
-                <button class="action-btn delete" data-id="${mark.id}" data-folder="${mark.folderId}">🗑️</button>
+            <td>${folderName}</td>
+            <td>
+                <button class="action-btn edit" onclick="editMark('${mark.id}', '${mark.folderId}')">✏️</button>
+                <button class="action-btn delete" onclick="deleteMark('${mark.id}', '${mark.folderId}')">🗑️</button>
             </td>
         `;
-        tbody.appendChild(row);
-    });
-
-    // Edit / Delete listeners
-    document.querySelectorAll('.action-btn.edit').forEach(btn => {
-        btn.addEventListener('click', () => editMark(btn.dataset.folder, btn.dataset.id));
-    });
-    document.querySelectorAll('.action-btn.delete').forEach(btn => {
-        btn.addEventListener('click', () => deleteMark(btn.dataset.folder, btn.dataset.id));
+        tableBody.appendChild(tr);
     });
 }
+
 
 
 async function deleteMark(folderId, markId) {
