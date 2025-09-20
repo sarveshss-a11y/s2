@@ -1719,51 +1719,87 @@ let chart = null;
 const apiStatusElement = document.getElementById('api-status');
 
 // Check API connection
+// ===============================
+// 🌐 CHECK API CONNECTION
+// ===============================
 async function checkApiConnection() {
     try {
-        // Try a simple endpoint that should always work
+        const token = localStorage.getItem("authToken");
+
+        // If no token, don’t call /api/user, just show "API ready"
+        if (!token) {
+            apiStatusElement.textContent = "API Ready (Login required)";
+            apiStatusElement.className = "api-status disconnected";
+            return;
+        }
+
+        // If token exists, test it with /api/user
         const response = await fetch(`${API_BASE_URL}/api/user`, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            }
+            headers: { "Authorization": `Bearer ${token}` }
         });
-        
-        if (response.status !== 401) { // If not unauthorized, API is connected
-            apiStatusElement.textContent = 'API Connected';
-            apiStatusElement.className = 'api-status connected';
+
+        if (response.ok) {
+            apiStatusElement.textContent = "API Connected";
+            apiStatusElement.className = "api-status connected";
+        } else if (response.status === 401 || response.status === 403) {
+            // Token is invalid or expired
+            localStorage.removeItem("authToken");
+            apiStatusElement.textContent = "Session expired. Please login again.";
+            apiStatusElement.className = "api-status disconnected";
+            showPage("login-page");
         } else {
-            throw new Error('API not responding properly');
+            throw new Error("API responded with " + response.status);
         }
     } catch (error) {
-        apiStatusElement.textContent = 'API Disconnected - Using local storage';
-        apiStatusElement.className = 'api-status disconnected';
+        console.warn("API connection check failed:", error.message);
+        apiStatusElement.textContent = "API Disconnected - Using local storage";
+        apiStatusElement.className = "api-status disconnected";
     }
 }
 
+
 // Initialize the app
 // Initialize the app when the DOM is loaded
+// ===============================
+// 🚀 INIT APP (safe version)
+// ===============================
 function initApp() {
-    // ✅ Check API connection
-    checkApiConnection();
-
-    // ✅ Setup all event listeners
+    // 1. Setup event listeners
     setupEventListeners();
 
-    // ✅ Check if user is logged in
-    checkAuthStatus();
-
-    // ✅ Load saved theme (dark/light)
+    // 2. Load theme preference
     loadThemePreference();
 
-    // ✅ Setup password toggle buttons (signup/login + modal)
+    // 3. Setup password toggles
     setupPasswordToggles();
 
-    // ✅ Set saved chart type in dropdown
+    // 4. Restore chart type preference
     const chartSelect = document.getElementById("chart-type-select");
     if (chartSelect) {
         chartSelect.value = chartType;
     }
+
+    // 5. Check if user has a token
+    const token = localStorage.getItem("authToken");
+    if (token) {
+        // Try to fetch user data
+        loadUserData()
+            .then(() => {
+                checkApiConnection(); // Only check after we know token works
+            })
+            .catch(err => {
+                console.error("Auto-login failed:", err.message);
+                localStorage.removeItem("authToken");
+                showPage("login-page");
+                checkApiConnection(); // Show status as disconnected
+            });
+    } else {
+        // No token → show login page immediately
+        showPage("login-page");
+        checkApiConnection(); // Will just say "API Ready (Login required)"
+    }
 }
+
 
 
 // Start the app when DOM is ready
@@ -1833,31 +1869,50 @@ function setupEventListeners() {
 
 
 // Authentication functions
+// ===============================
+// 🆕 HANDLE SIGNUP
+// ===============================
 async function handleSignup() {
-    const username = document.getElementById('signup-username').value;
-    const password = document.getElementById('signup-password').value;
-    const confirmPassword = document.getElementById('signup-confirm').value;
-    
+    const username = document.getElementById('signup-username').value.trim();
+    const password = document.getElementById('signup-password').value.trim();
+    const confirmPassword = document.getElementById('signup-confirm').value.trim();
+
     if (!username || !password) {
         showError('signup-error', 'Please fill in all fields');
         return;
     }
-    
+
     if (password !== confirmPassword) {
         showError('signup-error', 'Passwords do not match');
         return;
     }
-    
+
     try {
-        const result = await authAPI.signup(username, password);
-        localStorage.setItem('authToken', result.token);
-        currentUser = result.user;
-        showPage('app-page');
-        loadUserData();
-    } catch (error) {
-        showError('signup-error', error.message);
+        const res = await fetch(`${API_BASE_URL}/api/signup`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Signup failed");
+
+        // 🔹 Save real token from backend
+        localStorage.setItem("authToken", data.token);
+
+        currentUser = data.user;
+        showPage("app-page");
+        await loadUserData();
+
+    } catch (error) {   
+        console.error("Signup error:", error);
+        showError("signup-error", error.message || "Signup failed. Please try again.");
     }
 }
+
+// ===============================
+// 🔑 HANDLE LOGIN
+// ===============================
 // ===============================
 // 🔑 HANDLE LOGIN
 // ===============================
@@ -1876,7 +1931,6 @@ async function handleLogin(event) {
     }
 
     try {
-        // 🔹 Call backend login API
         const res = await fetch(`${API_BASE_URL}/api/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1884,18 +1938,12 @@ async function handleLogin(event) {
         });
 
         const data = await res.json();
-
-        if (!res.ok) {
-            throw new Error(data.message || "Login failed");
-        }
+        if (!res.ok) throw new Error(data.message || "Login failed");
 
         // 🔹 Save real token from backend
         localStorage.setItem("authToken", data.token);
 
-        // 🔹 Save current user info
         currentUser = data.user;
-
-        // 🔹 Go to app page and load user data
         showPage("app-page");
         await loadUserData();
 
@@ -1904,6 +1952,7 @@ async function handleLogin(event) {
         showError("login-error", error.message || "Login failed. Please try again.");
     }
 }
+
 
 
 
@@ -2584,6 +2633,9 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 // ===============================
 // 👁️ PASSWORD TOGGLE
 // ===============================
+// ===============================
+// 👁️ PASSWORD TOGGLE
+// ===============================
 function setupPasswordToggles() {
     document.querySelectorAll('.toggle-password').forEach(button => {
         button.addEventListener('click', () => {
@@ -2592,14 +2644,15 @@ function setupPasswordToggles() {
 
             if (input.type === "password") {
                 input.type = "text";
-                button.textContent = "🙈"; // eye-off
+                button.textContent = "🙈"; // hide
             } else {
                 input.type = "password";
-                button.textContent = "👁️"; // eye
+                button.textContent = "👁️"; // show
             }
         });
     });
 }
+
 
 // Add this function call at the end of your initApp function
 
@@ -2893,57 +2946,30 @@ function clearUI() {
 // ===============================
 // 🔑 LOAD USER DATA FROM BACKEND
 // ===============================
+// ===============================
+// 📂 LOAD USER DATA
+// ===============================
 async function loadUserData() {
     try {
-        // 🔹 Call backend
-        const userData = await dataAPI.getUserData();
+        const data = await apiRequest("/api/user");
 
-        // 🔹 Update globals
-        currentUser = userData.username || "Unknown User";
-        folders = Array.isArray(userData.folders) ? userData.folders : [];
+        currentUser = { username: data.username };
+        folders = data.folders || [];
 
-        // 🔹 Flatten marks
-        marks = [];
-        function collectMarks(folder) {
-            if (folder.marks && Array.isArray(folder.marks)) {
-                folder.marks.forEach(m => {
-                    marks.push({ ...m, folderId: folder.id });
-                });
-            }
-            if (folder.subfolders && Array.isArray(folder.subfolders)) {
-                folder.subfolders.forEach(sf => collectMarks(sf));
-            }
-        }
-        folders.forEach(f => collectMarks(f));
+        // Update UI
+        document.getElementById("user-name").textContent = currentUser.username;
+        document.getElementById("user-avatar").textContent = currentUser.username.charAt(0).toUpperCase();
 
-        // 🔹 Debug logs
-        console.log("✅ User loaded:", currentUser);
-        console.log("📂 Folders:", folders);
-        console.log("📝 Marks:", marks);
-
-        // 🔹 Update UI
-        document.getElementById("user-name").textContent = currentUser;
         renderFolders();
-        populateFolderSelect();
-        updateStats(); // table + stats + chart
-    } catch (err) {
-        console.error("❌ Error loading user data:", err);
+        renderMarks();
+        renderChart();
 
-        // Extra debug info
-        if (err.response) {
-            console.error("Server responded with:", err.response.status, err.response.statusText);
-            alert("Server error: " + err.response.statusText);
-        } else if (err.message) {
-            alert("Error: " + err.message);
-        } else {
-            alert("Could not load your data. Please login again.");
-        }
-
-        // Force logout if token issue
-        localStorage.removeItem("authToken");
-        showPage("login-page");
+    } catch (error) {
+        console.error("❌ Error loading user data:", error);
+        showError("login-error", error.message || "Failed to load user data.");
     }
 }
+
 
 
 
