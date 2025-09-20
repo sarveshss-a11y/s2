@@ -1961,35 +1961,24 @@ async function handleLogin(event) {
 // 📂 CREATE NEW FOLDER
 // ===============================
 async function createFolder() {
-    const folderNameInput = document.getElementById("folderName");
-    const name = folderNameInput.value.trim();
-
-    if (!name) {
-        alert("Please enter a folder name.");
-        return;
-    }
+    const name = document.getElementById("folderName").value.trim();
+    if (!name) return;
 
     try {
-        // Call backend API to create folder
         const result = await dataAPI.createFolder(name);
+        const newFolder = result.folder;
 
-        // Add new folder to local state
-        if (result.folder) {
-            folders.push(result.folder);
-        }
+        folders.push(newFolder);    // add to local state
+        renderFolders();            // re-render folder list in sidebar
+        updateFolderDropdown();     // 🔥 update dropdown immediately
 
-        // ✅ Update UI
-        folderNameInput.value = "";     // clear input
-        populateFolderSelect();         // refresh dropdowns
-        renderMarksTable("all");        // refresh marks table
-        if (typeof renderFolderTree === "function") {
-            renderFolderTree();         // refresh sidebar if available
-        }
+        document.getElementById("folderName").value = ""; // clear input
     } catch (err) {
         console.error("Error creating folder:", err);
-        alert("Failed to create folder. Please try again.");
+        alert("Failed to create folder: " + err.message);
     }
 }
+
 
 
 
@@ -2850,6 +2839,29 @@ function renderChart() {
 
 
  
+function updateFolderDropdown() {
+    const folderSelect = document.getElementById("marks-folder");
+    if (!folderSelect) return;
+
+    // Clear existing options
+    folderSelect.innerHTML = '<option value="">Select a folder</option>';
+
+    // Add all folders recursively
+    function addFolders(folders, prefix = "") {
+        folders.forEach(folder => {
+            const option = document.createElement("option");
+            option.value = folder.id;
+            option.textContent = prefix + folder.name;
+            folderSelect.appendChild(option);
+
+            if (folder.subfolders && folder.subfolders.length > 0) {
+                addFolders(folder.subfolders, prefix + "-- ");
+            }
+        });
+    }
+
+    addFolders(folders);
+}
 
 
 
@@ -2951,24 +2963,15 @@ function clearUI() {
 // ===============================
 async function loadUserData() {
     try {
-        const data = await apiRequest("/api/user");
-
-        currentUser = { username: data.username };
+        const data = await dataAPI.getUserData();
         folders = data.folders || [];
-
-        // Update UI
-        document.getElementById("user-name").textContent = currentUser.username;
-        document.getElementById("user-avatar").textContent = currentUser.username.charAt(0).toUpperCase();
-
-        renderFolders();
-        renderMarksTable();
-        renderChart();
-
-    } catch (error) {
-        console.error("❌ Error loading user data:", error);
-        showError("login-error", error.message || "Failed to load user data.");
+        renderMarksTable(folders);
+        updateFolderDropdown();  // 🔥 refresh folder dropdown
+    } catch (err) {
+        console.error("Error loading user data:", err);
     }
 }
+
 
 
 
