@@ -1255,7 +1255,10 @@ const dataAPI = {
 </script>
     </head>
     <body>
-        <div class="api-status" id="api-status">Checking API connection...</div>
+        <div class="api-status" id="api-status">Checking API connection...
+            <button id="retry-api-btn" style="display: none; margin-left: 10px;">Retry</button>
+        </div>
+        
 
         <!-- Modals -->
         <div class="modal" id="username-modal">
@@ -1722,21 +1725,32 @@ const apiStatusElement = document.getElementById('api-status');
 // ===============================
 // 🌐 CHECK API CONNECTION
 // ===============================
+// ===============================
+// 🌐 CHECK API CONNECTION (FIXED)
+// ===============================
 async function checkApiConnection() {
     try {
         const token = localStorage.getItem("authToken");
+        apiStatusElement.textContent = "Checking API connection...";
+        apiStatusElement.className = "api-status";
 
-        // If no token, don’t call /api/user, just show "API ready"
+        // If no token, just show ready status
         if (!token) {
             apiStatusElement.textContent = "API Ready (Login required)";
             apiStatusElement.className = "api-status disconnected";
             return;
         }
 
-        // If token exists, test it with /api/user
+        // Test API connection with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
         const response = await fetch(`${API_BASE_URL}/api/user`, {
-            headers: { "Authorization": `Bearer ${token}` }
+            headers: { "Authorization": `Bearer ${token}` },
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
             apiStatusElement.textContent = "API Connected";
@@ -1748,13 +1762,38 @@ async function checkApiConnection() {
             apiStatusElement.className = "api-status disconnected";
             showPage("login-page");
         } else {
-            throw new Error("API responded with " + response.status);
+            throw new Error(`API responded with ${response.status}`);
         }
     } catch (error) {
-        console.warn("API connection check failed:", error.message);
+    console.warn("API connection check failed:", error.message);
+    
+    if (error.name === 'AbortError') {
+        apiStatusElement.textContent = "API Timeout - Using local storage";
+    } else {
         apiStatusElement.textContent = "API Disconnected - Using local storage";
-        apiStatusElement.className = "api-status disconnected";
     }
+    
+    apiStatusElement.className = "api-status disconnected";
+    
+    // Show retry button
+    const retryBtn = document.getElementById('retry-api-btn');
+    if (retryBtn) retryBtn.style.display = 'inline-block';
+    
+    // Fall back to local data if available
+    if (localStorage.getItem('localBackupData')) {
+        try {
+            const localData = JSON.parse(localStorage.getItem('localBackupData'));
+            folders = localData.folders || [];
+            marks = localData.marks || [];
+            renderFolders();
+            renderMarksTable();
+            updateStats();
+            renderChart();
+        } catch (e) {
+            console.error("Failed to load local backup:", e);
+        }
+    }
+}
 }
 
 
@@ -1850,9 +1889,21 @@ function handleImportData(event) {
   reader.readAsText(file);
 }
 
+// Add this to functions that modify data:
+function backupDataLocally() {
+    const backupData = {
+        folders: folders,
+        marks: marks,
+        timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('localBackupData', JSON.stringify(backupData));
+}
 
+// Call backupDataLocally() after any data modification
 // Event Listeners
 function setupEventListeners() {
+    document.getElementById('retry-api-btn')?.addEventListener('click', checkApiConnection);
+
   // ---------------- Auth navigation ----------------
   document.getElementById('login-link')?.addEventListener('click', () => showPage('login-page'));
   document.getElementById('signup-link')?.addEventListener('click', () => showPage('signup-page'));
@@ -1900,6 +1951,7 @@ function setupEventListeners() {
     });
   });
 
+  
   // ---------------- Chart type selection ----------------
   document.getElementById('chart-type-select')?.addEventListener('change', (e) => {
     chartType = e.target.value;
