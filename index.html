@@ -1768,6 +1768,7 @@ function initApp() {
     loadThemePreference();
     
     // Setup password toggles
+    setupPasswordToggles();
     
     // Restore chart type preference
     const chartSelect = document.getElementById("chart-type-select");
@@ -1795,8 +1796,6 @@ function initApp() {
     // Use setTimeout to ensure DOM is fully parsed
     setTimeout(() => {
         setupEventListeners();
-            setupPasswordToggles();
-
     }, 0);
 }
 
@@ -2272,10 +2271,8 @@ function deleteMarks(markId) {
 function filterMarksByFolder() {
     const selectedFolderId = document.getElementById("folder-select").value;
     renderMarksTable(selectedFolderId);
-    renderChart(selectedFolderId); // Add this line
-        syncFolderSelection(selectedId);
-
 }
+
 
 // Settings functions
 async function changeUsername() {
@@ -2403,18 +2400,15 @@ async function deleteAccount() {
     item.appendChild(actions);
 
     // click to select folder (for UI highlight if desired)
-    // In your folder click handler
-item.addEventListener('click', () => {
-    selectedFolderId = folder.id;
-    const allFolderEls = sidebar.querySelectorAll('.folder-item');
-    allFolderEls.forEach(el => el.classList.remove('active-folder'));
-    item.classList.add('active-folder');
-    document.getElementById('folder-select').value = folder.id;
-    renderMarksTable(folder.id);
-    renderChart(folder.id); // Use the existing renderChart function
-        syncFolderSelection(folder.id);
-
-});
+    item.addEventListener('click', () => {
+      selectedFolderId = folder.id;
+      // optionally highlight; also select filter
+      const allFolderEls = sidebar.querySelectorAll('.folder-item');
+      allFolderEls.forEach(el => el.classList.remove('active-folder'));
+      item.classList.add('active-folder');
+      document.getElementById('folder-select').value = folder.id;
+      renderMarksTable(folder.id);
+    });
 
     parentEl.appendChild(item);
 
@@ -2427,29 +2421,7 @@ item.addEventListener('click', () => {
 }
 
 
-function syncFolderSelection(folderId) {
-    selectedFolderId = folderId;
-    
-    // Update folder dropdown
-    document.getElementById('folder-select').value = folderId;
-    
-    // Update UI highlights
-    document.querySelectorAll('.folder-item').forEach(el => {
-        el.classList.remove('active-folder');
-    });
-    
-    // Find and highlight the selected folder
-    const folderElements = document.querySelectorAll('.folder-item');
-    folderElements.forEach(el => {
-        if (el.textContent.includes(findFolderById(folderId, folders)?.name)) {
-            el.classList.add('active-folder');
-        }
-    });
-    
-    // Update views
-    renderMarksTable(folderId);
-    renderChart(folderId);
-}
+
 
 
 
@@ -2736,38 +2708,18 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 // ===============================
 // 👁️ PASSWORD TOGGLE
 // ===============================
-// ===============================
-// 👁️ PASSWORD TOGGLE
-// ===============================
 function setupPasswordToggles() {
-    // Use event delegation to handle dynamically created elements
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('toggle-password')) {
-            const input = e.target.parentElement.querySelector('input');
-            if (!input) return;
-
-            if (input.type === "password") {
-                input.type = "text";
-                e.target.textContent = "🙈";
-            } else {
-                input.type = "password";
-                e.target.textContent = "👁️";
-            }
-        }
-    });
-    
-    // Also set up any existing toggles
     document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', function() {
-            const input = this.parentElement.querySelector('input');
+        button.addEventListener('click', () => {
+            const input = button.parentElement.querySelector('input');
             if (!input) return;
 
             if (input.type === "password") {
                 input.type = "text";
-                this.textContent = "🙈";
+                button.textContent = "🙈";
             } else {
                 input.type = "password";
-                this.textContent = "👁️";
+                button.textContent = "👁️";
             }
         });
     });
@@ -2776,27 +2728,19 @@ function setupPasswordToggles() {
 
 // Add this function call at the end of your initApp function
 
-function renderChart(folderId = null) {
+function renderChart() {
     const ctx = document.getElementById('progress-chart').getContext('2d');
     if (chart) chart.destroy();
 
-    // Filter marks if folderId is provided
-    let filteredMarks = marks;
-    if (folderId && folderId !== "all") {
-        const folder = findFolderById(folderId, folders);
-        filteredMarks = folder ? collectAllMarks([folder]) : [];
-    }
-
-    const labels = filteredMarks.map(m => m.subject);
-    const percentages = filteredMarks.map(m => 
+    const labels = marks.map(m => m.subject);
+    const percentages = marks.map(m => 
         m.totalMarks > 0 ? ((m.marksObtained / m.totalMarks) * 100).toFixed(2) : 0
     );
 
     // Generate unique colors for each subject
     const colorPalette = [
         '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
-        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab',
-        '#c9cbff', '#ffb6c1', '#98fb98', '#f0e68c', '#dda0dd'
+        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab'
     ];
     
     const backgroundColors = [];
@@ -2844,69 +2788,7 @@ function renderChart(folderId = null) {
     });
 }
 
-function renderFolderChart(folderId) {
-    const ctx = document.getElementById('progress-chart').getContext('2d');
-    if (chart) chart.destroy();
-    
-    // Get marks for this specific folder
-    const folder = findFolderById(folderId, folders);
-    const folderMarks = folder ? collectAllMarks([folder]) : [];
-    
-    const labels = folderMarks.map(m => m.subject);
-    const percentages = folderMarks.map(m => 
-        m.totalMarks > 0 ? ((m.marksObtained / m.totalMarks) * 100).toFixed(2) : 0
-    );
-    
-    // Generate unique colors for each subject
-    const colorPalette = [
-        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
-        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab'
-    ];
-    
-    const backgroundColors = [];
-    const subjectColorMap = {};
-    
-    // Assign a consistent color to each subject
-    folderMarks.forEach((mark, index) => {
-        if (!subjectColorMap[mark.subject]) {
-            subjectColorMap[mark.subject] = colorPalette[Object.keys(subjectColorMap).length % colorPalette.length];
-        }
-        backgroundColors.push(subjectColorMap[mark.subject]);
-    });
 
-    chart = new Chart(ctx, {
-        type: chartType,
-        data: {
-            labels,
-            datasets: [{
-                label: 'Percentage',
-                data: percentages,
-                backgroundColor: backgroundColors,
-                borderColor: 'rgba(0,0,0,0.1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { 
-                legend: { 
-                    display: true,
-                    position: 'right'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const mark = folderMarks[context.dataIndex];
-                            return `${mark.marksObtained}/${mark.totalMarks} (${context.raw}%)`;
-                        }
-                    }
-                }
-            },
-            scales: { y: { beginAtZero: true, max: 100 } }
-        }
-    });
-}
 
 
 
@@ -3217,7 +3099,7 @@ function renderMarksTable(selectedFolderId = "all") {
     // Collect marks from all folders
     marksToShow = collectAllMarks(folders);
   } else {
-    // Find marks from a specific folder (including subfolders)
+    // Find marks from a specific folder
     const folder = findFolderById(selectedFolderId, folders);
     if (folder) {
       marksToShow = collectAllMarks([folder]);
@@ -3231,7 +3113,6 @@ function renderMarksTable(selectedFolderId = "all") {
   } else {
     emptyState.style.display = "none";
   }
-
 
   marksToShow.forEach(mark => {
     // Get folder name - use the improved function
