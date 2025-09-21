@@ -1768,7 +1768,6 @@ function initApp() {
     loadThemePreference();
     
     // Setup password toggles
-    setupPasswordToggles();
     
     // Restore chart type preference
     const chartSelect = document.getElementById("chart-type-select");
@@ -1796,6 +1795,8 @@ function initApp() {
     // Use setTimeout to ensure DOM is fully parsed
     setTimeout(() => {
         setupEventListeners();
+            setupPasswordToggles();
+
     }, 0);
 }
 
@@ -2271,8 +2272,10 @@ function deleteMarks(markId) {
 function filterMarksByFolder() {
     const selectedFolderId = document.getElementById("folder-select").value;
     renderMarksTable(selectedFolderId);
-}
+    renderChart(selectedFolderId); // Add this line
+        syncFolderSelection(selectedId);
 
+}
 
 // Settings functions
 async function changeUsername() {
@@ -2403,13 +2406,14 @@ async function deleteAccount() {
     // In your folder click handler
 item.addEventListener('click', () => {
     selectedFolderId = folder.id;
-    // optionally highlight; also select filter
     const allFolderEls = sidebar.querySelectorAll('.folder-item');
     allFolderEls.forEach(el => el.classList.remove('active-folder'));
     item.classList.add('active-folder');
     document.getElementById('folder-select').value = folder.id;
     renderMarksTable(folder.id);
-    renderFolderChart(folder.id); // Add this line
+    renderChart(folder.id); // Use the existing renderChart function
+        syncFolderSelection(folder.id);
+
 });
 
     parentEl.appendChild(item);
@@ -2423,7 +2427,29 @@ item.addEventListener('click', () => {
 }
 
 
-
+function syncFolderSelection(folderId) {
+    selectedFolderId = folderId;
+    
+    // Update folder dropdown
+    document.getElementById('folder-select').value = folderId;
+    
+    // Update UI highlights
+    document.querySelectorAll('.folder-item').forEach(el => {
+        el.classList.remove('active-folder');
+    });
+    
+    // Find and highlight the selected folder
+    const folderElements = document.querySelectorAll('.folder-item');
+    folderElements.forEach(el => {
+        if (el.textContent.includes(findFolderById(folderId, folders)?.name)) {
+            el.classList.add('active-folder');
+        }
+    });
+    
+    // Update views
+    renderMarksTable(folderId);
+    renderChart(folderId);
+}
 
 
 
@@ -2710,18 +2736,38 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 // ===============================
 // 👁️ PASSWORD TOGGLE
 // ===============================
+// ===============================
+// 👁️ PASSWORD TOGGLE
+// ===============================
 function setupPasswordToggles() {
-    document.querySelectorAll('.toggle-password').forEach(button => {
-        button.addEventListener('click', () => {
-            const input = button.parentElement.querySelector('input');
+    // Use event delegation to handle dynamically created elements
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('toggle-password')) {
+            const input = e.target.parentElement.querySelector('input');
             if (!input) return;
 
             if (input.type === "password") {
                 input.type = "text";
-                button.textContent = "🙈";
+                e.target.textContent = "🙈";
             } else {
                 input.type = "password";
-                button.textContent = "👁️";
+                e.target.textContent = "👁️";
+            }
+        }
+    });
+    
+    // Also set up any existing toggles
+    document.querySelectorAll('.toggle-password').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.parentElement.querySelector('input');
+            if (!input) return;
+
+            if (input.type === "password") {
+                input.type = "text";
+                this.textContent = "🙈";
+            } else {
+                input.type = "password";
+                this.textContent = "👁️";
             }
         });
     });
@@ -2730,12 +2776,19 @@ function setupPasswordToggles() {
 
 // Add this function call at the end of your initApp function
 
-function renderChart() {
+function renderChart(folderId = null) {
     const ctx = document.getElementById('progress-chart').getContext('2d');
     if (chart) chart.destroy();
 
-    const labels = marks.map(m => m.subject);
-    const percentages = marks.map(m => 
+    // Filter marks if folderId is provided
+    let filteredMarks = marks;
+    if (folderId && folderId !== "all") {
+        const folder = findFolderById(folderId, folders);
+        filteredMarks = folder ? collectAllMarks([folder]) : [];
+    }
+
+    const labels = filteredMarks.map(m => m.subject);
+    const percentages = filteredMarks.map(m => 
         m.totalMarks > 0 ? ((m.marksObtained / m.totalMarks) * 100).toFixed(2) : 0
     );
 
