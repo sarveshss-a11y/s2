@@ -2400,15 +2400,17 @@ async function deleteAccount() {
     item.appendChild(actions);
 
     // click to select folder (for UI highlight if desired)
-    item.addEventListener('click', () => {
-      selectedFolderId = folder.id;
-      // optionally highlight; also select filter
-      const allFolderEls = sidebar.querySelectorAll('.folder-item');
-      allFolderEls.forEach(el => el.classList.remove('active-folder'));
-      item.classList.add('active-folder');
-      document.getElementById('folder-select').value = folder.id;
-      renderMarksTable(folder.id);
-    });
+    // In your folder click handler
+item.addEventListener('click', () => {
+    selectedFolderId = folder.id;
+    // optionally highlight; also select filter
+    const allFolderEls = sidebar.querySelectorAll('.folder-item');
+    allFolderEls.forEach(el => el.classList.remove('active-folder'));
+    item.classList.add('active-folder');
+    document.getElementById('folder-select').value = folder.id;
+    renderMarksTable(folder.id);
+    renderFolderChart(folder.id); // Add this line
+});
 
     parentEl.appendChild(item);
 
@@ -2740,7 +2742,8 @@ function renderChart() {
     // Generate unique colors for each subject
     const colorPalette = [
         '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
-        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab'
+        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab',
+        '#c9cbff', '#ffb6c1', '#98fb98', '#f0e68c', '#dda0dd'
     ];
     
     const backgroundColors = [];
@@ -2788,7 +2791,69 @@ function renderChart() {
     });
 }
 
+function renderFolderChart(folderId) {
+    const ctx = document.getElementById('progress-chart').getContext('2d');
+    if (chart) chart.destroy();
+    
+    // Get marks for this specific folder
+    const folder = findFolderById(folderId, folders);
+    const folderMarks = folder ? collectAllMarks([folder]) : [];
+    
+    const labels = folderMarks.map(m => m.subject);
+    const percentages = folderMarks.map(m => 
+        m.totalMarks > 0 ? ((m.marksObtained / m.totalMarks) * 100).toFixed(2) : 0
+    );
+    
+    // Generate unique colors for each subject
+    const colorPalette = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
+        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab'
+    ];
+    
+    const backgroundColors = [];
+    const subjectColorMap = {};
+    
+    // Assign a consistent color to each subject
+    folderMarks.forEach((mark, index) => {
+        if (!subjectColorMap[mark.subject]) {
+            subjectColorMap[mark.subject] = colorPalette[Object.keys(subjectColorMap).length % colorPalette.length];
+        }
+        backgroundColors.push(subjectColorMap[mark.subject]);
+    });
 
+    chart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels,
+            datasets: [{
+                label: 'Percentage',
+                data: percentages,
+                backgroundColor: backgroundColors,
+                borderColor: 'rgba(0,0,0,0.1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { 
+                    display: true,
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const mark = folderMarks[context.dataIndex];
+                            return `${mark.marksObtained}/${mark.totalMarks} (${context.raw}%)`;
+                        }
+                    }
+                }
+            },
+            scales: { y: { beginAtZero: true, max: 100 } }
+        }
+    });
+}
 
 
 
@@ -3099,7 +3164,7 @@ function renderMarksTable(selectedFolderId = "all") {
     // Collect marks from all folders
     marksToShow = collectAllMarks(folders);
   } else {
-    // Find marks from a specific folder
+    // Find marks from a specific folder (including subfolders)
     const folder = findFolderById(selectedFolderId, folders);
     if (folder) {
       marksToShow = collectAllMarks([folder]);
@@ -3113,6 +3178,7 @@ function renderMarksTable(selectedFolderId = "all") {
   } else {
     emptyState.style.display = "none";
   }
+
 
   marksToShow.forEach(mark => {
     // Get folder name - use the improved function
