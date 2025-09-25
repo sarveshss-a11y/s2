@@ -1485,6 +1485,23 @@ const dataAPI = {
 
                         <div class="marks-form">
                             <h3 class="form-title">Add New Marks</h3>
+                             <div class="form-group">
+        <label for="subject">Subject</label>
+        <div style="display: flex; gap: 10px;">
+            <select id="subject-select" class="form-control" style="flex: 1;">
+                <option value="">Select or create a subject</option>
+            </select>
+            <button type="button" class="btn btn-info" id="create-subject-btn" style="white-space: nowrap;">New Subject</button>
+        </div>
+        <input type="text" id="subject" class="form-control" placeholder="Or enter new subject" style="display: none; margin-top: 5px;">
+    </div>
+
+    <div class="form-group">
+        <label for="current-folder">Current Folder</label>
+        <select id="marks-folder" class="form-control">
+            <option value="">Select a folder</option>
+        </select>
+    </div>
                             <div class="form-group">
                                 <label for="current-folder">Current
                                     Folder</label>
@@ -1710,6 +1727,7 @@ const dataAPI = {
 
         <script>
     let chartType = localStorage.getItem('chartType') || 'bar';
+let subjects = JSON.parse(localStorage.getItem('subjects')) || [];
 
 // State management
 let currentUser = null;
@@ -1809,6 +1827,9 @@ function initApp() {
     // Setup password toggles
     setupPasswordToggles();
     
+    // Setup subject management
+    setupSubjectManagement();
+    
     // Restore chart type preference
     const chartSelect = document.getElementById("chart-type-select");
     if (chartSelect) {
@@ -1832,7 +1853,6 @@ function initApp() {
     }
     
     // SETUP EVENT LISTENERS AFTER DOM IS READY
-    // Use setTimeout to ensure DOM is fully parsed
     setTimeout(() => {
         setupEventListeners();
     }, 0);
@@ -1973,7 +1993,9 @@ document.addEventListener("DOMContentLoaded", () => {
     setupEventListeners();
 });
 
-
+function saveSubjects() {
+    localStorage.setItem('subjects', JSON.stringify(subjects));
+}
 
 // Authentication functions
 // ===============================
@@ -2323,12 +2345,14 @@ function deleteMarks(markId) {
 function filterMarksByFolder() {
     const selectedFolderId = document.getElementById("folder-select").value;
     renderMarksTable(selectedFolderId);
+    renderChart(selectedFolderId); // Update chart too
+    updateStats(); // Update stats for the selected folder
 }
 
 
 // Settings functions
 async function changeUsername() {
-    const newUsername = document.getElementById('new-username').value;
+    const newUsername = document.getElementById('new-username').value.trim();
     const password = document.getElementById('username-password').value;
     
     if (!newUsername || !password) {
@@ -2337,12 +2361,31 @@ async function changeUsername() {
     }
     
     try {
-        await authAPI.changeUsername(newUsername, password);
+        const response = await fetch(`${API_BASE_URL}/api/user/username`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({ username: newUsername })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to change username');
+        }
+        
+        const data = await response.json();
         currentUser.username = newUsername;
         document.getElementById('user-name').textContent = newUsername;
         document.getElementById('user-avatar').textContent = newUsername.charAt(0).toUpperCase();
         hideModal('username-modal');
         alert('Username changed successfully!');
+        
+        // Clear the form
+        document.getElementById('new-username').value = '';
+        document.getElementById('username-password').value = '';
+        
     } catch (error) {
         alert('Error changing username: ' + error.message);
     }
@@ -2364,9 +2407,28 @@ async function changePassword() {
     }
     
     try {
-        await authAPI.changePassword(currentPassword, newPassword);
+        const response = await fetch(`${API_BASE_URL}/api/user/password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to change password');
+        }
+        
         hideModal('password-modal');
         alert('Password changed successfully!');
+        
+        // Clear the form
+        document.getElementById('current-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-new-password').value = '';
+        
     } catch (error) {
         alert('Error changing password: ' + error.message);
     }
@@ -2397,9 +2459,21 @@ async function deleteAccount() {
     }
     
     try {
-        await authAPI.deleteAccount();
+        const response = await fetch(`${API_BASE_URL}/api/user`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to delete account');
+        }
+        
         handleLogout();
         alert('Your account has been deleted successfully.');
+        
     } catch (error) {
         alert('Error deleting account: ' + error.message);
     }
@@ -2780,26 +2854,47 @@ function setupPasswordToggles() {
 
 // Add this function call at the end of your initApp function
 
-function renderChart() {
+function renderChart(selectedFolderId = "all") {
     const ctx = document.getElementById('progress-chart').getContext('2d');
     if (chart) chart.destroy();
 
-    const labels = marks.map(m => m.subject);
-    const percentages = marks.map(m => 
+    // Get marks based on folder selection
+    let marksToShow = [];
+    if (selectedFolderId === "all") {
+        marksToShow = collectAllMarks(folders);
+    } else {
+        const folder = findFolderById(selectedFolderId, folders);
+        if (folder) {
+            marksToShow = collectAllMarks([folder]);
+        }
+    }
+
+    if (marksToShow.length === 0) {
+        // Show empty chart message
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "#666";
+        ctx.textAlign = "center";
+        ctx.fillText("No data available for chart", ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+
+    const labels = marksToShow.map(m => m.subject);
+    const percentages = marksToShow.map(m => 
         m.totalMarks > 0 ? ((m.marksObtained / m.totalMarks) * 100).toFixed(2) : 0
     );
 
     // Generate unique colors for each subject
     const colorPalette = [
         '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
-        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab'
+        '#FF9F40', '#8ac6d1', '#ff6b6b', '#a5dee5', '#ffaaab',
+        '#c5a3ff', '#ff7eb9', '#7afcff', '#fff740', '#ff65a3'
     ];
     
     const backgroundColors = [];
     const subjectColorMap = {};
     
     // Assign a consistent color to each subject
-    marks.forEach((mark, index) => {
+    marksToShow.forEach((mark, index) => {
         if (!subjectColorMap[mark.subject]) {
             subjectColorMap[mark.subject] = colorPalette[Object.keys(subjectColorMap).length % colorPalette.length];
         }
@@ -2814,8 +2909,8 @@ function renderChart() {
                 label: 'Percentage',
                 data: percentages,
                 backgroundColor: backgroundColors,
-                borderColor: 'rgba(0,0,0,0.1)',
-                borderWidth: 1
+                borderColor: chartType === 'line' || chartType === 'radar' ? backgroundColors : 'rgba(0,0,0,0.1)',
+                borderWidth: chartType === 'line' || chartType === 'radar' ? 2 : 1
             }]
         },
         options: {
@@ -2823,19 +2918,38 @@ function renderChart() {
             maintainAspectRatio: false,
             plugins: { 
                 legend: { 
-                    display: true,
+                    display: chartType === 'pie' || chartType === 'doughnut',
                     position: 'right'
+                },
+                title: {
+                    display: true,
+                    text: selectedFolderId === "all" ? "All Subjects Performance" : "Folder Subjects Performance"
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const mark = marks[context.dataIndex];
-                            return `${mark.marksObtained}/${mark.totalMarks} (${context.raw}%)`;
+                            const mark = marksToShow[context.dataIndex];
+                            return `${mark.subject}: ${mark.marksObtained}/${mark.totalMarks} (${context.raw}%)`;
                         }
                     }
                 }
             },
-            scales: { y: { beginAtZero: true, max: 100 } }
+            scales: chartType !== 'pie' && chartType !== 'doughnut' ? { 
+                y: { 
+                    beginAtZero: true, 
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Percentage (%)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Subjects'
+                    }
+                }
+            } : {}
         }
     });
 }
@@ -3045,6 +3159,103 @@ function clearUI() {
     }
 }
 
+function populateSubjectSelect() {
+    const subjectSelect = document.getElementById('subject-select');
+    const subjectInput = document.getElementById('subject');
+    
+    subjectSelect.innerHTML = '<option value="">Select or create a subject</option>';
+    
+    subjects.forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject;
+        option.textContent = subject;
+        subjectSelect.appendChild(option);
+    });
+    
+    // Add custom option
+    const customOption = document.createElement('option');
+    customOption.value = 'custom';
+    customOption.textContent = '➕ Create New Subject';
+    subjectSelect.appendChild(customOption);
+}
+async function addMarks() {
+    let subject = document.getElementById('subject').value.trim();
+    const folderId = document.getElementById('marks-folder').value;
+    const marksObtained = Number(document.getElementById('marks-obtained').value);
+    const totalMarks = Number(document.getElementById('total-marks').value);
+    const date = document.getElementById('marks-date').value || '';
+
+    if (!folderId || !subject || isNaN(marksObtained) || isNaN(totalMarks)) {
+        alert('Please fill all fields correctly.');
+        return;
+    }
+
+    // Add new subject to list if it doesn't exist
+    if (subject && !subjects.includes(subject)) {
+        subjects.push(subject);
+        saveSubjects();
+        populateSubjectSelect();
+    }
+
+    try {
+        await dataAPI.addMarks(folderId, { subject, marksObtained, totalMarks, date });
+        
+        // Clear form but keep subject selection
+        document.getElementById('marks-obtained').value = '';
+        document.getElementById('total-marks').value = '';
+        document.getElementById('marks-date').value = new Date().toISOString().split('T')[0];
+        
+        await loadUserData();
+    } catch (err) {
+        console.error('Error adding marks:', err);
+        alert('Failed to add marks: ' + (err.message || err));
+    }
+}
+
+function setupSubjectManagement() {
+    const subjectSelect = document.getElementById('subject-select');
+    const subjectInput = document.getElementById('subject');
+    const createSubjectBtn = document.getElementById('create-subject-btn');
+    
+    // Populate subjects on load
+    populateSubjectSelect();
+    
+    // Handle subject selection
+    subjectSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            subjectInput.style.display = 'block';
+            subjectInput.value = '';
+            subjectInput.focus();
+        } else {
+            subjectInput.style.display = 'none';
+            subjectInput.value = this.value;
+        }
+    });
+    
+    // Create new subject button
+    createSubjectBtn.addEventListener('click', function() {
+        const newSubject = prompt('Enter new subject name:');
+        if (newSubject && newSubject.trim()) {
+            const subjectName = newSubject.trim();
+            if (!subjects.includes(subjectName)) {
+                subjects.push(subjectName);
+                saveSubjects();
+                populateSubjectSelect();
+                subjectSelect.value = subjectName;
+                subjectInput.value = subjectName;
+                subjectInput.style.display = 'none';
+            } else {
+                alert('Subject already exists!');
+            }
+        }
+    });
+    
+    // Allow direct input as well
+    subjectInput.addEventListener('input', function() {
+        subjectSelect.value = 'custom';
+    });
+}
+
 // Data loading
 // Replace the loadUserData function with this:
 // Data loading
@@ -3151,7 +3362,7 @@ function renderMarksTable(selectedFolderId = "all") {
     // Collect marks from all folders
     marksToShow = collectAllMarks(folders);
   } else {
-    // Find marks from a specific folder
+    // Find marks from a specific folder (including subfolders)
     const folder = findFolderById(selectedFolderId, folders);
     if (folder) {
       marksToShow = collectAllMarks([folder]);
@@ -3161,36 +3372,28 @@ function renderMarksTable(selectedFolderId = "all") {
   // Show empty state if no marks
   if (marksToShow.length === 0) {
     emptyState.style.display = "block";
+    tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No marks found for this folder</td></tr>';
     return;
   } else {
     emptyState.style.display = "none";
   }
 
   marksToShow.forEach(mark => {
-    // Get folder name - use the improved function
     const folderName = getFolderName(mark.folderId);
-
-    // Calculate percentage
     const percentage = mark.totalMarks > 0
       ? ((mark.marksObtained / mark.totalMarks) * 100).toFixed(2)
       : "0.00";
 
-    // Choose color class based on percentage
     let percentageClass = "low";
-    if (percentage >= 75) {
-      percentageClass = "high";
-    } else if (percentage >= 40) {
-      percentageClass = "medium";
-    }
+    if (percentage >= 75) percentageClass = "high";
+    else if (percentage >= 40) percentageClass = "medium";
 
-    // Format date if it exists
     let formattedDate = "";
     if (mark.date) {
       const dateObj = new Date(mark.date);
       formattedDate = !isNaN(dateObj) ? dateObj.toLocaleDateString() : mark.date;
     }
 
-    // Build row
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${mark.subject || "Unnamed Subject"}</td>
